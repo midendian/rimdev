@@ -4,7 +4,10 @@
 
 void sim_LcdScroll(int pixels)
 {
-	printf("sim: LcdScroll(%d)\n", pixels);
+
+	SIMTRACE("LcdScroll", "%d", pixels);
+
+	gui_scroll(pixels);
 
 	return;
 }

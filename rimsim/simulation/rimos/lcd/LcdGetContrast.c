@@ -5,7 +5,7 @@
 int sim_LcdGetContrast(void)
 {
 
-	printf("sim: LcdGetContrast()\n");
+	SIMTRACE_NOARG("LcdGetContrast");
 
 	return 0; /* lightest */
 }

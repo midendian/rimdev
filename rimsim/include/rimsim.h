@@ -106,4 +106,7 @@ unsigned long timer_getticks(void);
 int radio_retrievempak(int tag, unsigned char *destbuf, int destbuflen);
 int radio_sendmpak(TASK sender, const unsigned char *buf, int buflen);
 
+void gui_putstring(int x, int y, const char *str, int len);
+void gui_scroll(int pixels);
+
 #endif /* __RIMSIM_H__ */

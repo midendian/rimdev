@@ -855,15 +855,27 @@ static void loaddll_relocate(rimdll_t *dll)
 			if (type == IMAGE_REL_BASED_ABSOLUTE)
 				continue;
 
-			if (type == IMAGE_REL_BASED_HIGHLOW) {
+			if (type == IMAGE_REL_BASED_HIGH) {
+				u16 *field;
+
+				field = (unsigned short *)target;
+				*(field) += (delta >> 16) & 0xffff;
+
+				//abort(); /* XXX test this code sometime */
+
+			} else if (type == IMAGE_REL_BASED_HIGHLOW) {
 				u32 *field;
 
 				field = (unsigned long *)target;
 				*(field) += delta; /* wheee */
 
+			} else if ((type == 4) || (type == 5)) {
+
+				fprintf(stderr, "dll_relocate: IGNORING FIXUP! (%x)\n", type);
+
 			} else {
 				fprintf(stderr, "dll_relocate: unknown fixup type %d\n", type);
-				abort();
+				//abort();
 			}
 
 		}

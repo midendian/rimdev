@@ -3,6 +3,10 @@
 #include <rimsim.h>
 #include <gtk/gtk.h>
 
+static GdkPixmap *lcdpix = NULL;
+static GtkWidget *lcdglob = NULL;
+static GdkFont *lcdfont = NULL;
+
 static void destroy(GtkWidget *widget, gpointer data)
 {
 	gtk_main_quit();
@@ -22,13 +26,44 @@ static void *guithread(void *arg)
 	return NULL;
 }
 
+/* XXX the pixmap should be a fixed size no matter what */
+static gint lcd_configure(GtkWidget *widget, GdkEventConfigure *event)
+{
+
+	if (lcdpix)
+		gdk_pixmap_unref(lcdpix);
+
+	lcdpix = gdk_pixmap_new(widget->window,
+							widget->allocation.width,
+							widget->allocation.height,
+							-1);
+
+	gdk_draw_rectangle(lcdpix,
+					   widget->style->white_gc,
+					   TRUE,
+					   0, 0,
+					   widget->allocation.width,
+					   widget->allocation.height);
+
+	return TRUE;
+}
+
 static gboolean lcd_expose(GtkWidget *widget, GdkEventExpose *event)
 {
+
+	gdk_draw_pixmap(widget->window,
+					widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
+					lcdpix,
+					event->area.x, event->area.y,
+					event->area.x, event->area.y,
+					event->area.width, event->area.height);
+
+#if 0
 
 	gdk_window_clear_area(widget->window,
 						  event->area.x, event->area.y,
 						  event->area.width, event->area.height);
-
+#endif
 #if 0
 	gdk_draw_rectangle (widget->window,
 						widget->style->black_gc,
@@ -36,7 +71,7 @@ static gboolean lcd_expose(GtkWidget *widget, GdkEventExpose *event)
 						event->area.x, event->area.y, 10, 10);
 #endif
 
-	return TRUE;
+	return FALSE;
 }
 
 static gboolean lcd_keyrelease(GtkWidget *widget, GdkEventKey *event)
@@ -64,6 +99,88 @@ static gboolean lcd_keyrelease(GtkWidget *widget, GdkEventKey *event)
 	sendmessage(&keypadmsg, RIM_TASK_INVALID);
 
 	return TRUE;
+}
+
+static void updatelcd(void)
+{
+	GdkRectangle r;
+
+	if (!lcdglob)
+		return;
+
+	/* XXX could be more selective about this */
+	r.x = 0;
+	r.y = 0;
+	r.width = lcdglob->allocation.width;
+	r.height = lcdglob->allocation.height;
+
+	fprintf(stderr, "updatelcd: %dx%d+%d+%d\n", r.width, r.height, r.x, r.y);
+
+#if 0
+	gtk_widget_draw(lcdglob, &r);
+#else
+	gtk_widget_queue_draw(lcdglob);
+#endif
+	return;
+}
+
+void gui_putstring(int x, int y, const char *str, int len)
+{
+
+	gdk_threads_enter();
+
+	gdk_draw_text(lcdpix, lcdfont, lcdglob->style->black_gc, x, y, str, len);
+
+	updatelcd();
+
+	gdk_threads_leave();
+
+	return;
+}
+
+/* XXX i'm sure theres a better way of doing this */
+void gui_scroll(int pixels)
+{
+	GdkPixmap *newlcd;
+
+	if (!pixels)
+		return; /* no point */
+
+	gdk_threads_enter();
+
+	/*
+	 * Create a new pixmap, then draw the parts we want
+	 * to keep into the new one. 
+	 */
+
+    newlcd = gdk_pixmap_new(lcdglob->window,
+							lcdglob->allocation.width,
+							lcdglob->allocation.height,
+							-1);
+
+	gdk_draw_rectangle(newlcd,
+					   lcdglob->style->white_gc,
+					   TRUE,
+					   0, 0,
+					   lcdglob->allocation.width,
+					   lcdglob->allocation.height);
+
+	gdk_draw_pixmap(newlcd, 
+					lcdglob->style->black_gc,
+					lcdpix,
+					0, (pixels > 0) ? pixels : 0,
+					0, (pixels < 0) ? -pixels : 0,
+					lcdglob->allocation.width,
+					lcdglob->allocation.height);
+
+	gdk_pixmap_unref(lcdpix);
+	lcdpix = newlcd;
+
+	updatelcd();
+
+	gdk_threads_leave();
+
+	return;
 }
 
 /* this is Bad. */
@@ -97,6 +214,9 @@ int gui_start(int *argc, char ***argv)
 
 	gtk_init(argc, argv);
 
+	if (!(lcdfont = gdk_font_load("-*-lucida-medium-r-*-*-8-*-*-*-*-*-*-*")))
+		abort();
+
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
 	gtk_signal_connect(GTK_OBJECT(window), "destroy",
@@ -108,12 +228,14 @@ int gui_start(int *argc, char ***argv)
 
 	vbox = gtk_vbox_new(FALSE, 0);
 
-	lcd = gtk_drawing_area_new();
+	lcdglob = lcd = gtk_drawing_area_new();
 	gtk_drawing_area_size(GTK_DRAWING_AREA(lcd), 160, 160);
 	gtk_box_pack_start(GTK_BOX(vbox), lcd, FALSE, FALSE, 0);
 
 	gtk_signal_connect(GTK_OBJECT(lcd), "expose_event", 
 					   GTK_SIGNAL_FUNC(lcd_expose), NULL);
+	gtk_signal_connect(GTK_OBJECT(lcd), "configure_event", 
+					   GTK_SIGNAL_FUNC(lcd_configure), NULL);
 
 	label = gtk_label_new("And now for something completely different ...");
 	gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
