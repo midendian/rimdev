@@ -173,6 +173,10 @@ typedef struct simulcall_s {
 	int argcount;
 } simulcall_t;
 
+struct exportedsym {
+	simulcall_t sym;
+	struct exportedsym *next;
+};
 
 struct import_directory {
 	struct import_lookup_table *ilt;
@@ -273,6 +277,7 @@ typedef struct rimdll_s {
 	struct RIMDependency *rimdeps;
 	struct RIMVersion *rimvers;
 	struct import_directory *importdir;
+	struct exportedsym *exports;
 } rimdll_t;
 
 struct rimdll_entry {
@@ -284,20 +289,24 @@ struct rimdll_entry {
 	struct rimdll_entry *next;
 };
 
+struct rimdll_entry *rimdll_list = NULL;
+
 /* ---------    libc Emulation Functions    --------- */
 
 static void sim_YAXPAX(void)
 {
-	printf("sim: YAXPAX\n");
+
+	SIMTRACE_NOARG("YAXPAX");
 
 	return;
 }
 
-static void sim_YAPAXI(void)
+static int sim_YAPAXI(void)
 {
-	printf("sim: YAXPAXI\n");
 
-	return;
+	SIMTRACE_NOARG("YAPAXI");
+
+	return 0;
 }
 
 
@@ -308,14 +317,34 @@ static void sim_YAPAXI(void)
  */
 static void sim_ribbon_RibbonRegisterApplication(const char *applicationName, const BitMap *bitmap, int applicationData, int position)
 {
-	printf("sim: ribbon: RibbonRegisterApplication(%s, %p, %d, %d)\n", applicationName, bitmap, applicationData, position);
+
+	SIMTRACE("RibbonRegisterApplication", "%s, %p, %d, %d", applicationName, bitmap, applicationData, position);
 
 	return;
 }
 
 static void sim_ribbon_RibbonShowRibbon(void)
 {
-	printf("sim: ribbon: RibbonShowRibbon()\n");
+
+	SIMTRACE_NOARG("RibbonShowRibbon");
+
+	return;
+}
+
+static int sim_ribbon_RegisterApplication(char *name, int major, int minor, int build)
+{
+
+	SIMTRACE("RegisterApplication", "{%s}, %d, %d, %d", name, major, minor, build);
+
+	return 1; /* success */
+}
+
+static void sim_ribbon_RibbonRegisterFunction(const char *applicationName, const BitMap *bitmap, int applicationData, int position, rim_entry_t entry, DWORD stacksize)
+{
+
+	SIMTRACE("RibbonRegisterFunction", "%s, %p, %d, %d, %p, %ld", applicationName, bitmap, applicationData, position, entry, stacksize);
+
+	sim_RimCreateThread(entry, stacksize);
 
 	return;
 }
@@ -509,10 +538,41 @@ simulcall_t simulatedcalls[] = {
 	 (simulfunc_t)sim_RadioChangeNetworks, 0, 0},
 
 
+	{"ribbon.dll", "RegisterApplication", 17,
+	 (simulfunc_t)sim_ribbon_RegisterApplication, 0, 0},
 	{"ribbon.dll", "RibbonRegisterApplication", 23,
 	 (simulfunc_t)sim_ribbon_RibbonRegisterApplication, 0, 0},
 	{"ribbon.dll", "RibbonShowRibbon", 26,
 	 (simulfunc_t)sim_ribbon_RibbonShowRibbon, 0, 0},
+	{"ribbon.dll", "RibbonRegisterFunction", 30,
+	 (simulfunc_t)sim_ribbon_RibbonRegisterFunction, 0, 0},
+#if 0
+	{"ribbon.dll", "RibbonAddBitmap", 51,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "RibbonGetPrevApplication", 32,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "RibbonModifyApplication", 22,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "RibbonRemoveBitmap", 43,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "RibbonSetApplicationString", 24,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "RibbonSetBitmap", 49,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "RibbonSetNextApplication", 25,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "RibbonSetPrevApplication", 31,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "RibbonUnregisterApplication", 27,
+	 (simulfunc_t)NULL, 0, 0},
+
+	{"ribbon.dll", "FormatDate", 3,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "FormatDay", 4,
+	 (simulfunc_t)NULL, 0, 0},
+	{"ribbon.dll", "AddOption", 33,
+	 (simulfunc_t)NULL, 0, 0},
+#endif
 	{"", "", -1, NULL, 0, 0}
 };
 
@@ -735,6 +795,7 @@ void freedll(rimdll_t *dll)
 	struct RIMDependency *cur;
 	struct RIMVersion *curv;
 	struct import_directory *idt;
+	struct exportedsym *cure;
 
 	if (!dll)
 		return;
@@ -759,6 +820,15 @@ void freedll(rimdll_t *dll)
 		curv = curv->next;
 
 		free(tmp->name);
+		free(tmp);
+	}
+
+	for (cure = dll->exports; cure; ) {
+		struct exportedsym *tmp;
+
+		tmp = cure;
+		cure = cure->next;
+
 		free(tmp);
 	}
 
@@ -1138,6 +1208,95 @@ static void loaddll_processidata(rimdll_t *dll)
 	return;
 }
 
+struct export_directory {
+	u32 flags;
+	u32 timestamp;
+	u16 majorver;
+	u16 minorver;
+	u32 namerva;
+	u32 ordinalbase;
+	u32 addrtablelen;
+	u32 nametablelen;
+	u32 exporttablerva;
+	u32 nametablerva;
+	u32 ordinaltablerva;
+};
+
+static void loaddll_processedata(rimdll_t *dll)
+{
+	int i = 0;
+	int j;
+	unsigned char *edata;
+	struct export_directory edir;
+
+	if (!dll || !dll->coff.opthdr.directories[0].rva)
+		return;
+
+	edata = dll->vma + dll->coff.opthdr.directories[0].rva;
+
+	loadval32(edir.flags, edata, i);
+	loadval32(edir.timestamp, edata, i);
+	loadval16(edir.majorver, edata, i);
+	loadval16(edir.minorver, edata, i);
+	loadval32(edir.namerva, edata, i);
+	loadval32(edir.ordinalbase, edata, i);
+	loadval32(edir.addrtablelen, edata, i);
+	loadval32(edir.nametablelen, edata, i);
+	loadval32(edir.exporttablerva, edata, i);
+	loadval32(edir.nametablerva, edata, i);
+	loadval32(edir.ordinaltablerva, edata, i);
+
+	fprintf(stderr, "Export directory:\n");
+	fprintf(stderr, "\tFlags: 0x%08lx\n", edir.flags);
+	fprintf(stderr, "\tTimestamp: 0x%08lx\n", edir.timestamp);
+	fprintf(stderr, "\tVersion: %d.%d\n", edir.majorver, edir.minorver);
+	fprintf(stderr, "\tName RVA: 0x%08lx (%s)\n", edir.namerva, 
+			(char *)(dll->vma+edir.namerva));
+	fprintf(stderr, "\tOrdinal base: 0x%08lx\n", edir.ordinalbase);
+	fprintf(stderr, "\tAddress table length: 0x%08lx\n", edir.addrtablelen);
+	fprintf(stderr, "\tName table length: 0x%08lx\n", edir.nametablelen);
+	fprintf(stderr, "\tExport table RVA: 0x%08lx\n", edir.exporttablerva);
+	fprintf(stderr, "\tName table RVA: 0x%08lx\n", edir.nametablerva);
+	fprintf(stderr, "\tOrdinal table RVA: 0x%08lx\n", edir.ordinaltablerva);
+
+	/* Can you guess how many levels of indirection are used here? */
+	for (j = 0; j < edir.addrtablelen; j++) {
+		char *name = NULL;
+		int z;
+		struct exportedsym *newsym;
+		
+		for (z = 0; z < edir.nametablelen; z++) {
+			/* tables contains offsets, not ordinals! */
+			if (((u16 *)(dll->vma+edir.ordinaltablerva))[z] == j) {
+				name = (char *)((((u32 *)(dll->vma+edir.nametablerva))[z]) + dll->vma);
+				break;
+			}
+		}
+
+		fprintf(stderr, "symbol %s::%s%s%ld is at 0x%08lx\n",
+				(char *)(dll->vma+edir.namerva),
+				name ? name : "",
+				name ? "/" : "",
+				edir.ordinalbase + j,
+				((u32 *)(dll->vma+edir.exporttablerva))[j]);
+
+		if (!(newsym = malloc(sizeof(struct exportedsym))))
+			return;
+		memset(newsym, 0, sizeof(struct exportedsym));
+
+		strcpy(newsym->sym.libname, (char *)(dll->vma+edir.namerva));
+		if (name)
+			strcpy(newsym->sym.name, name);
+		newsym->sym.ordinal = edir.ordinalbase + j;
+		newsym->sym.func = (simulfunc_t)(((u32 *)(dll->vma+edir.exporttablerva))[j] + dll->vma);
+
+		newsym->next = dll->exports;
+		dll->exports = newsym;
+	}
+
+	return;
+}
+
 /*
  * The entry point listed in the .version section is probably
  * okay to use (and works so far for me).  It is not the address
@@ -1334,6 +1493,7 @@ static rimdll_t *loaddll(unsigned char *buf)
 	loaddll_processversions(dll);
 	loaddll_processdeps(dll);
 	loaddll_processidata(dll);
+	loaddll_processedata(dll);
 	loaddll_setpagermain(dll);
 
 	return dll;
@@ -1342,7 +1502,33 @@ static rimdll_t *loaddll(unsigned char *buf)
 static simulcall_t *dll_findsym(struct import_directory *dir, struct import_lookup_table *ilt)
 {
 	int i;
+	struct rimdll_entry *curdll;
 
+	/* first see if another app is exporting it */
+	for (curdll = rimdll_list; curdll; curdll = curdll->next) {
+		struct exportedsym *sym;
+
+		for (sym = curdll->dll->exports; sym; sym = sym->next) {
+
+			if (strcmp(sym->sym.libname, dir->name) != 0)
+				continue;
+
+			if (strlen(sym->sym.name) && (ilt->ordinal_flag == 0x00)) {
+
+				if (strcmp(sym->sym.name, ilt->ihnt.name) == 0)
+					return &sym->sym;
+
+			} else if (ilt->ordinal_flag == 0x01) {
+
+				if (ilt->ordinalnum == sym->sym.ordinal)
+					return &sym->sym;
+
+			}
+		}
+
+	}
+
+	/* otherwise look for OS calls */
 	for (i = 0; strlen(simulatedcalls[i].libname); i++) {
 
 		if (strcmp(simulatedcalls[i].libname, dir->name) != 0)
@@ -1357,7 +1543,7 @@ static simulcall_t *dll_findsym(struct import_directory *dir, struct import_look
 		}
 	}
 
-	fprintf(stderr, "dll_findsym: could not match %s/%ld\n", ilt->ihnt.name, ilt->ordinalnum);
+	fprintf(stderr, "dll_findsym: could not match %s::%s/%ld\n", dir->name, ilt->ihnt.name, ilt->ordinalnum);
 
 	return NULL;
 }
@@ -1412,8 +1598,6 @@ static void dll_bindthunks(rimdll_t *dll)
 
 	return;
 }
-
-struct rimdll_entry *rimdll_list = NULL;
 
 static int adddll(char *fn)
 {
