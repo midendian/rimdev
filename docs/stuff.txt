@@ -1,0 +1,119 @@
+
+The OS binary text is loaded at 0x03fb0000 in flash, with its data at
+0x00580000 in RAM (which is a lie, since theres application RAM
+sections at that exact same address).
+
+Locations of RIM OS core API functions on the pager...
+
+  0x03fb283d  RimSprintf
+  0x03fb8ee4  RimTaskYield
+  0x03fb0482  strtol
+  0x03fb3d44  LcdClearToEndOfLine
+  0x03fb8992  RimRequestForeground
+  0x03fb06be  RimGetCurrentTaskID
+  0x03fb073c  RimGetMessage
+  0x03fb3e41  LcdPutStringXY
+  0x03fb8f0f  RimTerminateThread
+  0x03fb1dca  RimMalloc
+  0x03fb3d03  LcdClearDisplay
+  0x03fb8814  RimSetLed
+  0x03fb8dbd  RimSetPID
+  0x03fb8e0b  RimDebugPrintf
+  
+
+
+
+Some source snippets:
+
+
+LcdClearDisplay:
+
+56e8 29fb ffff 8bf0
+8b46 348b 4e30 8d56
+4850 5152 5051 528b
+563c 2bd0 8b46 382b
+
+c152 506a 00e8 7b0d
+0000 8b46 3083 c424
+8946 288b 4634 8946
+2c8b ce5e e90a ffff
+
+ff56 e8e8 faff ff8b
+f08b 4e2c 8b46 288d
+5648 5150 5251 8b4e
+1050 520f b649 0351
+
+
+RimSprintf:
+
+8d44 2410 50ff 7424
+10ff 7424 10ff 7424
+10e8 affc ffff 83c4
+10c3 56ff 7424 08e8
+
+69f5 ffff 833d 9811
+5f00 0059 8bf0 7418
+8d44 2408 8b54 2408
+83e8 04b9 0598 0029
+
+ff30 56e8 1e67 0000
+8bc6 5ec3 833d 9811
+5f00 0074 178b 5424
+048d 4424 0483 e804
+
+----------
+
+PagerMain:
+
+void PagerMain(void)
+{
+	unsigned long *ptr;
+	MESSAGE msg;
+	char z[128], field[32];
+	int fieldlen;
+
+	RimDebugPrintf("Entered PagerMain\n");
+
+	...
+}
+
+558b ec81 ec08 0100
+0053 5657 8dbd f8fe
+ffff b942 0000 00b8
+cccc cccc f3ab 6878
+9eec 03e8 a2ff ffff
+83c4 04e8 b003 0000
+e8ad 0600 008b f46a
+006a 0068 689e ec03
+68d4 9eec 03ff 1514
+8bff 0383 c410 3bf4
+e8e1 0600 006a 016a
+00e8 c006 0000 83c4
+
+ 3eb8690:       55                      push   %ebp
+ 3eb8691:       8b ec                   mov    %esp,%ebp
+ 3eb8693:       81 ec 08 01 00 00       sub    $0x108,%esp
+ 3eb8699:       53                      push   %ebx
+ 3eb869a:       56                      push   %esi
+ 3eb869b:       57                      push   %edi
+ 3eb869c:       8d bd f8 fe ff ff       lea    0xfffffef8(%ebp),%edi
+ 3eb86a2:       b9 42 00 00 00          mov    $0x42,%ecx
+ 3eb86a7:       b8 cc cc cc cc          mov    $0xcccccccc,%eax
+ 3eb86ac:       f3 ab                   repz stos %eax,%es:(%edi)
+ 3eb86ae:       68 78 9e ec 03          push   $0x3ec9e78 ; this is fixed-up
+ 3eb86b3:       e8 a2 ff ff ff          call   0x3eb865a ; unfixed-up(relative)
+ 3eb86b8:       83 c4 04                add    $0x4,%esp
+
+
+ 3eb865a:       ff 25 e0 8a ff 03       jmp    *0x3ff8ae0 ; fixed-up??
+
+0x3ff8ae0 is the actual thunk variable -- it contains the address of
+the real entry point to the OS call.
+
+The RIM loader aparently locates the .idata (thunk fields) section
+into a very particular place in RAM.  You can see this list using
+'programmer dir' -- its the third pair of columns.
+
+---------
+
+
