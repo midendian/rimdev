@@ -1,4 +1,13 @@
 
+----
+
+ALT-CAP-R            Radio stats (really arcane info)
+ALT-CAP-S            Task switcher
+ALT-CAP-BACKSPACE    Halt
+ALT-CAP-V/B          Device status (did you know that its 27degC in here?)
+
+----
+
 The OS binary text is loaded at 0x03fb0000 in flash, with its data at
 0x00580000 in RAM (which is a lie, since theres application RAM
 sections at that exact same address).
