@@ -16,6 +16,10 @@
  * for backing up messages, the databases, etc.  But, ironically, thats a
  * much more complicated protocol than this one.
  *
+ * XXX This needs to be cleaned up, support writing, support the actual
+ * loading and linking process, and have a real user interface added to 
+ * control it by means other than changing the code and recompiling.
+ *
  */
 
 #include <config.h>
