@@ -4,9 +4,8 @@
 
 TASK sim_RimGetMessage(MESSAGE *msg)
 {
-	printf("sim: RimGetMessage(%p)\n", msg);
 
-	fflush(stdout);
+	SIMTRACE("RimGetMessage", "%p", msg);
 
 	for (;;) {
 		MESSAGE *newmsg;

@@ -60,12 +60,24 @@ rim_task_t *rim_task_current = NULL;
 static TASK rim_nexttaskid = RIM_TASK_FIRSTID;
 static time_t lastslicestart = 0;
 
-TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
+/*
+ * Task creation is done in two steps:
+ *   - Create the entry in the task list -- createtask().
+ *   - Start the thread and put it into the run queue -- inittask().
+ *
+ * Even after inittask(), the thread will still not have run yet.  It will
+ * not run until the first time it is hit by the scheduler.
+ *
+ */
+rim_task_t *createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 {
 	rim_task_t *newtask;
 
-	if (!entry || (stacksize < 2000))
+	if (!entry)
 		return RIM_TASK_INVALID;
+
+	if (stacksize < 2000)
+		fprintf(stderr, "WARNING: stack size for %s is less than 2kb -- not recommended!\n", name);
 
 	if (!(newtask = malloc(sizeof(rim_task_t))))
 		return RIM_TASK_INVALID;
@@ -104,7 +116,7 @@ TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 
 	pthread_mutex_unlock(&rim_task_list_lock);
 
-	return newtask->taskid;
+	return newtask;
 }
 
 /*
@@ -160,7 +172,12 @@ static void *taskentry(void *arg)
 
 	return NULL;
 }
-    
+
+int inittask(rim_task_t *tsk)
+{
+	return pthread_create(&tsk->tid, NULL, taskentry, tsk) ? -1 : 0;
+}
+
 /*
  * This is the one called by main().  It has to be special relative
  * to what the OS calls because the incoming context is not part of
@@ -176,7 +193,7 @@ void firstschedule(void)
 	rim_task_t *cur;
 
 	for (cur = rim_task_list; cur; cur = cur->next) {
-		if (pthread_create(&cur->tid, NULL, taskentry, cur)) {
+		if (inittask(cur) == -1) {
 			fprintf(stderr, "firstschedule: unable to create thread for %ld\n", cur->taskid);
 			return;
 		}

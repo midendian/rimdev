@@ -4,7 +4,8 @@
 
 void sim_RimTaskYield(void)
 {
-	printf("sim: RimTaskYield()\n");
+
+	SIMTRACE_NOARG("RimTaskYield");
 
 	/* Let exactly one app run and then come back. (??) */
 	schedule();

@@ -373,6 +373,10 @@ simulcall_t simulatedcalls[] = {
 	 (simulfunc_t)sim_YAPAXI, 0, 0},
 	{"RIMOS.EXE", "LcdGetConfig", -1,
 	 (simulfunc_t)sim_LcdGetConfig, 0, 0},
+	{"RIMOS.EXE", "LcdGetContrast", -1,
+	 (simulfunc_t)sim_LcdGetContrast, 0, 0},
+	{"RIMOS.EXE", "LcdSetContrast", -1,
+	 (simulfunc_t)sim_LcdSetContrast, 0, 0},
 	{"RIMOS.EXE", "RimGetTicks", -1,
 	 (simulfunc_t)sim_RimGetTicks, 0, 0},
 	{"RIMOS.EXE", "RimGetForegroundApp", -1,
@@ -1535,7 +1539,7 @@ static int createinitialtasks(void)
 	struct rimdll_entry *cur;
 
 	for (cur = rimdll_list; cur; cur = cur->next) {
-		if (createtask(cur->dll->rimversion.EntryPtr, *(cur->dll->rimversion.AppStackSize), RIM_TASK_NOPARENT, cur->dll->rimversion.VersionPtr) == RIM_TASK_INVALID) {
+		if (!createtask(cur->dll->rimversion.EntryPtr, *(cur->dll->rimversion.AppStackSize), RIM_TASK_NOPARENT, cur->dll->rimversion.VersionPtr)) {
 			fprintf(stderr, "createinitialtasks: createtask failed\n");
 			return -1;
 		}

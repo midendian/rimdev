@@ -4,7 +4,8 @@
 
 BOOL sim_RimReplyMessage(TASK hTask, MESSAGE *msg)
 {
-	printf("sim: RimReplyMessage(%ld, %p)\n", hTask, msg);
+
+	SIMTRACE("RimReplyMessage", "%ld, %p", hTask, msg);
 
 	return FALSE;
 }

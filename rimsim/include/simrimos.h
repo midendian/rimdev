@@ -1,6 +1,9 @@
 #ifndef __SIMRIMOS_H__
 #define __SIMRIMOS_H__
 
+#define SIMTRACE_NOARG(x) fprintf(stderr, "sim: %s(%ld): " x "()\n", rim_task_current->name, rim_task_current->taskid)
+#define SIMTRACE(x, y, z...) fprintf(stderr, "sim: %s(%ld): " x "(" y ")\n", rim_task_current->name, rim_task_current->taskid, ##z)
+
 /* Start of RIM compatibility definitions */
 #pragma pack(2) /* code assumes 16bit alignment */
 
@@ -242,10 +245,12 @@ void sim_LcdIconsEnable(BOOL Enable);
 int sim_LcdSetDisplayContext(int iDC);
 int sim_LcdGetDisplayContext(void);
 int sim_LcdGetCharacterWidth(char c, int fontIndex);
+int sim_LcdGetContrast(void);
 int sim_LcdGetCurrentFont(void);
 int sim_LcdSetCurrentFont(int iFontIndex);
 int sim_LcdGetFontHeight(int fontIndex);
 int sim_LcdReplaceFont(int iFontIndex, const FontDefinition *pNewFont);
+void sim_LcdSetContrast(int contrast);
 void sim_LcdSetTextWindow(int x, int y, int wide, int high);
 void sim_LcdScroll(int pixels);
 void sim_LcdSetPixel(int x, int y, BOOL value);

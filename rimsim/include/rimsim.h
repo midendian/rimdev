@@ -81,7 +81,8 @@ extern rim_task_t *rim_task_current;
 
 void debugprintf(const char *fmt, va_list ap);
 
-TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name);
+rim_task_t *createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name);
+int inittask(rim_task_t *task);
 void schedule(void);
 void firstschedule(void);
 

@@ -10,6 +10,7 @@ librimsim_simul_rimos_lcd_a_SOURCES = \
 	LcdDrawLine.c \
 	LcdGetCharacterWidth.c \
 	LcdGetConfig.c \
+	LcdGetContrast.c \
 	LcdGetCurrentFont.c \
 	LcdGetDisplayContext.c \
 	LcdGetFontHeight.c \
@@ -18,6 +19,7 @@ librimsim_simul_rimos_lcd_a_SOURCES = \
 	LcdRasterOp.c \
 	LcdReplaceFont.c \
 	LcdScroll.c \
+	LcdSetContrast.c \
 	LcdSetCurrentFont.c \
 	LcdSetDisplayContext.c \
 	LcdSetPixel.c \

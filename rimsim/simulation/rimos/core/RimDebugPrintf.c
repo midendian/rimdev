@@ -6,7 +6,8 @@ void sim_RimDebugPrintf(const char *Format, ...)
 {
 	va_list ap;
 
-	printf("sim: RimDebugPrintf(%s)\n", Format);
+	SIMTRACE("RimDebugPrintf", "%s", Format);
+
 	va_start(ap, Format);
 	debugprintf(Format, ap);
 	va_end(ap);
