@@ -54,6 +54,7 @@ typedef struct rim_task_s {
 } rim_task_t;
 
 extern rim_task_t *rim_task_list;
+extern pthread_mutex_t rim_task_list_lock;
 extern rim_task_t *rim_task_current;
 
 TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name);

@@ -55,8 +55,10 @@
 #undef DEBUG_SCHEDULE
 
 rim_task_t *rim_task_list = NULL;
+pthread_mutex_t rim_task_list_lock = PTHREAD_MUTEX_INITIALIZER;
 rim_task_t *rim_task_current = NULL;
 static TASK rim_nexttaskid = RIM_TASK_FIRSTID;
+static time_t lastslicestart = 0;
 
 TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 {
@@ -85,12 +87,16 @@ TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 	if (newtask->parent == RIM_TASK_NOPARENT)
 		newtask->flags |= RIM_TASKFLAG_ENABLEFOREGROUND;
 
+	pthread_mutex_lock(&rim_task_list_lock);
+
 	newtask->next = rim_task_list;
 	rim_task_list = newtask;
 
 	/* If we haven't started running a task yet, set the first one runnable */
 	if (!rim_task_current)
 		rim_task_current = rim_task_list;
+
+	pthread_mutex_unlock(&rim_task_list_lock);
 
 	return newtask->taskid;
 }
@@ -137,6 +143,8 @@ static void *taskentry(void *arg)
 	/* Wait until we're set runnable for the first time. */
 	TASK_WAITTORUN(self);
 
+	self->flags &= ~RIM_TASKFLAG_NOTYETRUN;
+
 	/* Do it! */
 	self->entry();
 
@@ -154,8 +162,7 @@ static void *taskentry(void *arg)
  *
  * It is also responsible for creating the threads for each task. After
  * the first task is woken up, this thread just sits around and waits.
- * It would probably be wise to implement the watchpuppy here instead
- * of just sleeping.
+ * Therefore, the watchpuppy is implemented here.
  *
  */
 void firstschedule(void)
@@ -172,11 +179,15 @@ void firstschedule(void)
 	/* Wake up first task */
 	TASK_WAKEUP(rim_task_current);
 
+	time(&lastslicestart);
+
 	for (;;) {
 #ifdef DEBUG_SCHEDULE
 		fprintf(stderr, "main thread sleeping...\n");
 #endif
-		sleep(1);
+		sleep(5);
+		if ((time(NULL) - lastslicestart) > 5)
+			sim_RimCatastrophicFailure("Error 96: watchpuppy hath barked");
 	}
 
 	return;
@@ -204,6 +215,8 @@ void schedule(void)
 #endif
 
 	TASK_WAKEUP(rim_task_current);
+
+	time(&lastslicestart);
 
 #ifdef DEBUG_SCHEDULE
 	fprintf(stderr, "starting %ld back up\n", caller->taskid);
