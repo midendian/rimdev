@@ -57,6 +57,9 @@
  *
  * XXX This code should be cleaned up _a lot_.
  *
+ * XXX For OS calls that take struct, care needs to be taken to make
+ * sure gcc knows that the structs must be 16bit aligned, not 32bit aligned.
+ *
  */
 
 #include <rimsim.h>
@@ -270,6 +273,14 @@ typedef struct rimdll_s {
 	struct import_directory *importdir;
 } rimdll_t;
 
+struct rimdll_entry {
+	rimdll_t *dll;
+	int fd;
+	int mappedsize;
+	unsigned char *mapped;
+	char *filename;
+	struct rimdll_entry *next;
+};
 
 /* ---------    libc Emulation Functions    --------- */
 
@@ -1137,6 +1148,9 @@ static rimdll_t *loaddll(unsigned char *buf)
 	 * Thats because I'm really not in the mood to implement
 	 * fixups right now.
 	 *
+	 * Sigh.  Or at least we would, if MAP_FIXED worked correctly
+	 * on linux.  Instead it silently maps over the old one.
+	 *
 	 */
 	if ((dll->vma = mmap((void *)dll->coff.opthdr.ImageBase, dll->coff.opthdr.SizeOfImage, PROT_EXEC|PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)) == MAP_FAILED) {
 		fprintf(stderr, "loaddll: mmap failed: %s\n", strerror(errno));
@@ -1202,7 +1216,7 @@ static rimdll_t *loaddll(unsigned char *buf)
 	}
 
 	loaddll_processversions(dll);
-	//loaddll_processdeps(dll);
+	loaddll_processdeps(dll);
 	loaddll_processidata(dll);
 	loaddll_setpagermain(dll);
 
@@ -1281,27 +1295,17 @@ static void dll_bindthunks(rimdll_t *dll)
 	return;
 }
 
-int main(int argc, char **argv)
+struct rimdll_entry *rimdll_list = NULL;
+
+static int adddll(char *fn)
 {
-	int c;
-	char *fn = NULL;
-	unsigned char *fdata = NULL;
 	struct stat st;
+	struct rimdll_entry *entry;
 	int fd;
-	rimdll_t *dll = NULL;
-	int loadit = 0;
+	unsigned char *fdata;
 
-	while ((c = getopt(argc, argv, "h")) != EOF) {
-		if (c == 'h') {
-		showhelp:
-			printf("hah.\n");
-			return -1;
-		}
-	}
-
-	if (optind >= argc)
-		goto showhelp;
-	fn = argv[optind];
+	if (!fn || !strlen(fn))
+		return -1;
 
 	printf("opening %s...\n", fn);
 
@@ -1336,30 +1340,127 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (!(dll = loaddll(fdata))) {
-		printf("loaddll failed\n");
+	if (!(entry = malloc(sizeof(struct rimdll_entry))))
+		return -1;
+
+	entry->dll = NULL;
+	entry->filename = strdup(fn);
+	entry->fd = fd;
+	entry->mappedsize = st.st_size;
+	entry->mapped = fdata;
+
+	entry->next = rimdll_list;
+	rimdll_list = entry;
+
+	return 0;
+}
+
+static void remdlls(void)
+{
+	struct rimdll_entry *cur;
+
+	for (cur = rimdll_list; cur; ) {
+		struct rimdll_entry *tmp;
+
+		tmp = cur;
+		cur = cur->next;
+
+		printf("closing %s\n", tmp->filename);
+
+		if (tmp->dll)
+			freedll(tmp->dll);
+		free(tmp->filename);
+		munmap(tmp->mapped, tmp->mappedsize);
+		close(tmp->fd);
+		free(tmp);
+	}
+
+	return;
+}
+
+static int loaddlls(void)
+{
+	struct rimdll_entry *cur;
+
+	for (cur = rimdll_list; cur; cur = cur->next) {
+		if (!(cur->dll = loaddll(cur->mapped))) {
+			printf("loaddll failed on %s\n", cur->filename);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int resolveandbind(void)
+{
+	struct rimdll_entry *cur;
+	int problem;
+
+	for (cur = rimdll_list; cur; cur = cur->next) {
+		if ((problem = dll_resolvesymbols(cur->dll)))
+			return problem;
+		dll_bindthunks(cur->dll);
+
+		dumpdll(cur->dll);
+
+	}
+
+	return 0;
+}
+
+static void printbanners(void)
+{
+	struct rimdll_entry *cur;
+
+	for (cur = rimdll_list; cur; cur = cur->next) {
+
+		printf("Loaded application for platform %s v%ld.%ld: %s, requires %d bytes stack, entry at %p\n", 
+			   cur->dll->rimversion.signature, 
+			   cur->dll->rimversion.version >> 8,
+			   cur->dll->rimversion.version & 0xff,
+			   cur->dll->rimversion.VersionPtr,
+			   *(cur->dll->rimversion.AppStackSize),
+			   cur->dll->rimversion.EntryPtr);
+
+	}
+
+	return;
+}
+
+int main(int argc, char **argv)
+{
+	int i;
+	rimdll_t *dll = NULL;
+	int loadit = 0;
+
+	while ((i = getopt(argc, argv, "h")) != EOF) {
+		if (i == 'h') {
+		showhelp:
+			printf("hah.\n");
+			return -1;
+		}
+	}
+
+	if (optind >= argc)
+		goto showhelp;
+
+	for (i = optind; i < argc; i++) {
+		if (adddll(argv[i]) != 0)
+			goto out;
+	}
+
+	if (loaddlls() != 0)
+		goto out;
+
+	if (resolveandbind() != 0) {
+		printf("!!!! some thunks could not be bound, bailing out\n");
 		goto out;
 	}
 
-	loadit = dll_resolvesymbols(dll);
-	dll_bindthunks(dll);
+	printbanners();
 
-	dumpdll(dll);
-
-	printf("Loaded application for platform %s v%ld.%ld: %s, requires %d bytes stack, entry at %p\n", 
-		   dll->rimversion.signature, 
-		   dll->rimversion.version >> 8,
-		   dll->rimversion.version & 0xff,
-		   dll->rimversion.VersionPtr,
-		   *(dll->rimversion.AppStackSize),
-		   dll->rimversion.EntryPtr);
-
-	if (loadit) {
-		printf("found %d unresolved symbols, skipping execution\n", loadit);
-		goto out;
-	}
-
-#if 1
+#if 0
 	sleep(1);
 	fprintf(stderr, "jumping to main entry point (%p)...\n", dll->PagerMain);
 
@@ -1387,12 +1488,7 @@ int main(int argc, char **argv)
 #endif
 
  out:
-	freedll(dll);
-
-	printf("closing %s\n", fn);
-
-	munmap(fdata, st.st_size);
-	close(fd);
+	remdlls();
 
 	return 0;
 }
