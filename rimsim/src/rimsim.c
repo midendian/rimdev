@@ -63,6 +63,7 @@
  */
 
 #include <rimsim.h>
+#include "gui.h"
 
 #define PE_SIG_LEN 4
 #define PE_OFF_STARTOFFSET 0x003c
@@ -776,15 +777,28 @@ static dll_section_t *getdllsection(rimdll_t *dll, const char *name)
 static void loaddll_relocate(rimdll_t *dll)
 {
 	dll_section_t *sec;
-	int i;
+	int i, relocend;
 	long delta;
 
 	if (!dll || !(sec = getdllsection(dll, ".reloc")))
 		return;
 
+	if (sec->VirtualAddress != dll->coff.opthdr.directories[5].rva) {
+		fprintf(stderr, "loaddll_relocate: relocations not in .reloc section!\n");
+		abort();
+	}
+
+	/*
+	 * The size of the relocation block is not required to be the
+	 * same size as the .reloc section (technically, it doesn't
+	 * even have to be in the .reloc section).  This is in fact always
+	 * the case with MSVC-generated executables.
+	 */
+	relocend = dll->coff.opthdr.directories[5].size;
+
 	delta = (unsigned long)dll->vma - dll->coff.opthdr.ImageBase;
 
-	for (i = 0; i < sec->datalen; ) {
+	for (i = 0; i < relocend; ) {
 		unsigned long pagerva, blocksize;
 		int j;
 
@@ -1504,6 +1518,9 @@ int main(int argc, char **argv)
 {
 	int i;
 	int loadit = 0;
+
+	if (gui_start(&argc, &argv) == -1)
+		return -1;
 
 	while ((i = getopt(argc, argv, "h")) != EOF) {
 		if (i == 'h') {
