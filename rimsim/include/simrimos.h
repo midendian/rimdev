@@ -180,5 +180,6 @@ HandleType sim_DbAddRec(HandleType db, unsigned size, const void *data);
 void const * const *sim_DbPointTable(void);
 STATUS sim_DbAndRec(HandleType rec, void *mask, unsigned size, unsigned offset);
 
+#pragma pack(4) /* XXX */
 
 #endif /* __SIMRIMOS_H__ */

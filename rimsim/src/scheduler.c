@@ -32,7 +32,7 @@ TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 
 	newtask->taskid = rim_nexttaskid++;
 	newtask->parent = (parent >= RIM_TASK_FIRSTID) ? parent : RIM_TASK_NOPARENT;
-	newtask->flags = RIM_TASKFLAG_NONE;
+	newtask->flags = RIM_TASKFLAG_NOTYETRUN; /* set until first task switch */
 	if (name)
 		strncpy(newtask->name, name, RIM_MAXAPPNAMELEN);
 	newtask->entry = entry;
@@ -65,6 +65,8 @@ TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 	return newtask->taskid;
 }
 
+static unsigned long ourstackptr = 0;
+
 /*
  * This is the one called by main().  It has to be special relative
  * to what the OS calls because the incoming context is not part of
@@ -81,6 +83,8 @@ void firstschedule(void)
 		 :"=r"(stackptr));
 
 	fprintf(stderr, "firstschedule: our stack is at 0x%08lx\n", stackptr);
+
+	ourstackptr = stackptr;
 
 #if 0
 	/*
@@ -147,37 +151,91 @@ void firstschedule(void)
 						  :"r"(rim_task_current->esp),
 						  "r"(rim_task_current->eip)
 						  );
+#if 0 /* this actually works right now */
+	rim_task_current->entry();
+#endif
 
 	return;
 }
 
 /* XXX I haven't decided how I want to do this yet. */
+/*
+ * This as a function is completely unworkable because gcc
+ * generates code that uses the registers before we can save
+ * the context.  I suppose the context needs to be saved
+ * before this function is entered.
+ */
 void schedule(void)
 {
 
-#if 0
 	/*
 	 * Now comes the fun part.
 	 */
 	
-	if (!rim_task_current)
-		abort();
-
-	/* Save the caller's stack and instruction pointers. */
+	/* 
+	 * Save the caller's context. 
+	 *
+	 * Note that after pushing the context onto the caller's stack,
+	 * the stack pointer is restored to our master stack.  This is
+	 * so that all the libc calls made within schedule() are done with
+	 * the stack that libc gave us, not the one we allocated for the 
+	 * current task.  
+	 */
+#if 0
 	__asm__ __volatile__ (
-						  "mov (%%ebp), %0;"
-						  "mov %%esp, %1;"
+						  "movl 4(%%esp), %0;"
+						  "movl %%esp, %1;"
 						  :"=r"(rim_task_current->eip), 
 						  "=r"(rim_task_current->esp));
+#else
+	__asm__ __volatile__ (
+						  "movl 4(%%esp), %0;"
+
+#if 1
+						  /* Remove ourselves */
+						  "popl %%eax;"
+						  "popl %%eax;"
+#endif
+
+						  /* Save context */
+#if 0
+						  "pushl %%eax;"
+						  "pushl %%ebx;"
+						  "pushl %%ecx;"
+						  "pushl %%edx;"
+						  "pushl %%esi;"
+						  "pushl %%edi;"
+						  "pushl %%ebp;"
+#else
+						  "pusha;"
+#endif
+						  "movl %%esp, %1;"
+
+						  "int3;"
+
+						  /* Restore our stack pointer */
+						  "movl %2, %%esp;"
+						  "movl %2, %%ebp;"
+
+						  :
+						  "=r"(rim_task_current->eip),
+						  "=r"(rim_task_current->esp)
+						  :
+						  "r"(ourstackptr)
+						  );
+#endif
+
+	/* The stack is now in a defined state, so unflag this. */
+	rim_task_current->flags &= ~RIM_TASKFLAG_NOTYETRUN;
+
+	fprintf(stderr, "schedule: %ld/%s -> %ld/%s\n", 
+			rim_task_current->taskid, rim_task_current->name, 
+			rim_task_current->next?rim_task_current->next->taskid:rim_task_list->taskid, 
+			rim_task_current->next?rim_task_current->next->name:rim_task_list->name);
+
 
 	fprintf(stderr, "schedule: saved registers: 0x%08lx, 0x%08lx\n",
 			rim_task_current->eip, rim_task_current->esp);
-
-#if 0
-	/* Attempt to remove ourselves from the stack */
-	__asm__ __volatile__ (
-	);
-#endif
 
 	/* Switch to the next task */
 	if (rim_task_current->next)
@@ -185,15 +243,45 @@ void schedule(void)
 	else
 		rim_task_current = rim_task_list;
 
-	/* Change stacks and jump to new task */
-	__asm__ __volatile__ (
-						  "mov %0, %%esp;"
-						  "jmp %1;"
-						  :
-						  :"r"(rim_task_current->esp),
-						  "r"(rim_task_current->eip));
-
+	if (rim_task_current->flags & RIM_TASKFLAG_NOTYETRUN) {
+		/* Change stacks and jump to new task */
+		__asm__ __volatile__ (
+							  "movl %0, %%esp;"
+							  "movl %1, %%ebp;"
+							  "jmpl %2;"
+							  :
+							  :"r"(rim_task_current->esp),
+							  "r"(rim_task_current->stackbase),
+							  "r"(rim_task_current->eip));
+	} else {
+		__asm__ __volatile__ (
+							  "movl %0, %%esp;" /* restore their stack */
+							  "movl %1, %%ebp;"
+#if 0
+							  "popl %%ebp;" /* restore their integer context */
+							  "popl %%edi;"
+							  "popl %%esi;"
+							  "popl %%edx;"
+							  "popl %%ecx;"
+							  "popl %%ebx;"
+							  "popl %%eax;"
+#else
+							  "popa;"
+							  "movl %0, %%esp;" /* restore their stack */
+							  "movl %1, %%ebp;"
 #endif
+							  "int3;"
+							  "jmp %1;"
+							  :
+							  "=r"(rim_task_current->esp),
+							  "=r"(rim_task_current->stackbase)
+							  :
+							  "r"(rim_task_current->eip)
+							  );
+							  
+	}
+
+	/* Never make it here */
 
 	return;
 }

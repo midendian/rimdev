@@ -1521,7 +1521,6 @@ int main(int argc, char **argv)
 
 	if (gui_start(&argc, &argv) == -1)
 		return -1;
-
 	while ((i = getopt(argc, argv, "h")) != EOF) {
 		if (i == 'h') {
 		showhelp:

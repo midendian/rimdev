@@ -8,9 +8,13 @@ void sim_LcdGetConfig(LcdConfig *Config)
 	printf("sim: LcdGetConfig(%p)\n", Config);
 
 	Config->LcdType = 0;
-	Config->contrastRange = 100;
-	Config->width = 60;
-	Config->height = 120;
+	Config->contrastRange = 31;
+
+	/*
+	 * For a Pager, its 65x132; for a handheld its 160x160.
+	 */
+	Config->width = 65;
+	Config->height = 132;
 
 	return;
 }
