@@ -8,6 +8,111 @@ ALT-CAP-V/B          Device status (did you know that its 27degC in here?)
 
 ----
 
+Host:
+   00 ; clear out channel
+   0eaa 0ff0  ; request attention
+   ... ; repeat until respons
+Pager:
+   06 ; ack
+
+Host:
+   01 42 04 ; ???
+Pager:
+   04 ; ???
+Host:
+   00 00 00 00 ; ???
+Pager:
+   15 ; ???
+
+Host:
+   01 42 04 ; ???
+Pager:
+   04 ; ???
+Host:
+   00 c2 01 00 ; ??? = 115200
+Pager:
+   06 ; ???
+
+Host:
+   01 70 04 ; ???
+Pager:
+   15 
+
+Host:
+   01 52 04
+Pager:
+   06
+Host:
+   20c0ff03 cc00 ; Request 0x00cc bytes starting at 0x03ffc020
+Pager:
+   06 [data] [two byte checksum]
+
+Host:
+   01 49 04 
+Pager:
+   06 4f 00  ; = 79
+
+Host:
+   01 52 04
+Pager:
+   06
+Host:
+   1040ff03 fc01 ; 0x01fc bytes @ 0x03ff4010
+Pager:
+   06 [data] [two byte checksum]
+
+Host:
+   01 52 04
+Pager:
+   06
+Host:
+   0c42ff03 0401 ; 0x0104 bytes @ 0x03ff420c
+Pager:
+   06 [data] [two byte checksum]
+
+Host:
+   01 53 04
+Pager:
+   06
+Host:
+   00 00
+Pager:
+   06
+
+Host:
+   01 57 04
+Pager:
+   06
+Host:
+   3c40ff03 0400 0200 0000 ac32
+Pager:
+   06
+
+Host:
+   01 52 04
+Pager:
+   06
+Host:
+   3c40ff03 0400 ; 0x0004 bytes @ 0x03ff403c
+Pager:
+   06 [data] [two byte checksum]
+
+... [more requests] ...
+
+Host:
+   01 72 04  ; query total RAM
+Pager:
+   06 00 c0 08 00 ; 560kb
+
+Host:
+   01 58 04
+Pager:
+   06 00 00
+
+[pager reboots]
+
+----
+
 The OS binary text is loaded at 0x03fb0000 in flash, with its data at
 0x00580000 in RAM (which is a lie, since theres application RAM
 sections at that exact same address).
