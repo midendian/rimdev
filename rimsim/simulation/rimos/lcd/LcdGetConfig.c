@@ -5,7 +5,7 @@
 void sim_LcdGetConfig(LcdConfig *Config)
 {
 
-	printf("sim: LcdGetConfig(%p)\n", Config);
+	SIMTRACE("LcdGetConfig", "%p", Config);
 
 	Config->LcdType = 0;
 	Config->contrastRange = 31;

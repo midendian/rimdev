@@ -293,20 +293,22 @@ struct rimdll_entry *rimdll_list = NULL;
 
 /* ---------    libc Emulation Functions    --------- */
 
-static void sim_YAXPAX(void)
+static void sim_operator_delete(void *ptr)
 {
 
-	SIMTRACE_NOARG("YAXPAX");
+	SIMTRACE("operator_delete", "%p", ptr);
+
+	sim_RimFree(ptr);
 
 	return;
 }
 
-static int sim_YAPAXI(void)
+static void *sim_operator_new(unsigned int size)
 {
 
-	SIMTRACE_NOARG("YAPAXI");
+	SIMTRACE("operator_new", "%d", size);
 
-	return 0;
+	return sim_RimMalloc(size);
 }
 
 
@@ -396,10 +398,12 @@ simulcall_t simulatedcalls[] = {
 	 (simulfunc_t)sim_memmove, 0, 0},
 	{"RIMOS.EXE", "RimRealloc", -1,
 	 (simulfunc_t)sim_RimRealloc, 0, 0},
+
 	{"RIMOS.EXE", "??3@YAXPAX@Z", -1,
-	 (simulfunc_t)sim_YAXPAX, 0, 0},
+	 (simulfunc_t)sim_operator_delete, 0, 0},
 	{"RIMOS.EXE", "??2@YAPAXI@Z", -1,
-	 (simulfunc_t)sim_YAPAXI, 0, 0},
+	 (simulfunc_t)sim_operator_new, 0, 0},
+
 	{"RIMOS.EXE", "LcdGetConfig", -1,
 	 (simulfunc_t)sim_LcdGetConfig, 0, 0},
 	{"RIMOS.EXE", "LcdGetContrast", -1,
@@ -1749,8 +1753,8 @@ void debugprintf(const char *fmt, va_list ap)
 
 	gui_debugprintf(fmt, ap);
 
-	vfprintf(stderr, fmt, ap);
-	fflush(stderr);
+	vfprintf(stdout, fmt, ap);
+	fflush(stdout);
 
 	return;
 }

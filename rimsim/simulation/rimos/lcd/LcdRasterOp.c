@@ -4,7 +4,11 @@
 
 void sim_LcdRasterOp(DWORD wOp, DWORD wWide, DWORD wHigh, const BitMap *src, int SrcX, int SrcY, BitMap *dest, int DestX, int DestY)
 {
-	printf("sim: LcdRasterOp(%ld, %ld, %ld, %p, %d, %d, %p, %d, %d)\n", wOp, wWide, wHigh, src, SrcX, SrcY, dest, DestX, DestY);
+
+	SIMTRACE("LcdRasterOp", "%ld, %ld, %ld, %p, %d, %d, %p, %d, %d", wOp, wWide, wHigh, src, SrcX, SrcY, dest, DestX, DestY);
+
+	if (wOp == COPY_SRC)
+		gui_putbitmap(src->data, src->wide, src->high, DestX, DestY);
 
 	return;
 }

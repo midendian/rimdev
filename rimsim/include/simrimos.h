@@ -121,6 +121,28 @@ typedef struct {
 	WORD height;
 } LcdConfig;
 
+#define DRAW_WHITE 0
+#define DRAW_INVERT 1
+#define DRAW_BLACK 2
+
+/* for LcdRasterOp */
+#define WHITE                   0
+#define INVERT_OF_SRC_OR_DEST   1
+#define INVERT_SRC_AND_DEST     2
+#define COPY_INVERT_SRC         3
+#define SRC_AND_INVERT_DEST     4
+#define INVERT_DEST             5
+#define SRC_XOR_DEST            6
+#define INVERT_OF_SRC_AND_DEST  7
+#define SRC_AND_DEST            8
+#define INVERT_OF_SRC_XOR_DEST  9
+#define NO_OP                   10
+#define INVERT_SRC_OR_DEST      11
+#define COPY_SRC                12
+#define SRC_OR_INVERT_DEST      13
+#define SRC_OR_DEST             14
+#define BLACK                   15
+
 typedef struct {
 	BYTE bFontType;
 	BYTE bFirstChar;

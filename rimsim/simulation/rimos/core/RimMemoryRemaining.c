@@ -4,7 +4,8 @@
 
 DWORD sim_RimMemoryRemaining(void)
 {
-	printf("sim: RimMemoryRemaining()\n");
+
+	SIMTRACE_NOARG("RimMemoryRemaining");
 
 	return 0;
 }

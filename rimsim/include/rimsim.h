@@ -108,5 +108,7 @@ int radio_sendmpak(TASK sender, const unsigned char *buf, int buflen);
 
 void gui_putstring(int x, int y, const char *str, int len);
 void gui_scroll(int pixels);
+void gui_drawline(int type, int x1, int y1, int x2, int y2);
+void gui_putbitmap(const unsigned char *bitmap, int width, int height, int destx, int desty);
 
 #endif /* __RIMSIM_H__ */

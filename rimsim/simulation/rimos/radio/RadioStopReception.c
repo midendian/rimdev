@@ -2,10 +2,10 @@
 
 #include <rimsim.h>
 
-void sim_RadioResumeReception(void)
+void sim_RadioStopReception(int mpakTag)
 {
 
-	printf("sim: RadioResumeReception()\n");
+	SIMTRACE("RadioStopReception", "%d", mpakTag);
 
 	return;
 }

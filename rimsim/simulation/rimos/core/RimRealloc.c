@@ -4,7 +4,8 @@
 
 void *sim_RimRealloc(void *Ptr, DWORD size)
 {
-	printf("sim: RimRealloc(%p, %ld)\n", Ptr, size);
 
-	return NULL;
+	SIMTRACE("RimRealloc", "%p, %ld", Ptr, size);
+
+	return realloc(Ptr, size);
 }

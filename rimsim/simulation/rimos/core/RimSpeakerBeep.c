@@ -4,7 +4,8 @@
 
 void sim_RimSpeakerBeep(int frequency, int duration, int duty, int volume)
 {
-	printf("sim: RimSpeakerBeep(%d, %d, %d, %d)\n", frequency, duration, duty, volume);
+
+	SIMTRACE("RimSpeakerBeep", "%d, %d, %d, %d", frequency, duration, duty, volume);
 
 	return;
 }

@@ -6,7 +6,7 @@ void sim_RadioRegister(void)
 {
 	MESSAGE msg;
 
-	printf("sim: RadioRegister()\n");
+	SIMTRACE_NOARG("RadioRegister");
 
 	rim_task_current->flags |= RIM_TASKFLAG_WANTSRADIO;
 

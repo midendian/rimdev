@@ -4,7 +4,8 @@
 
 int sim_RimGetTuneName(unsigned int TuneIndex, const char **TuneName)
 {
-	printf("sim: RimGetTuneName(%u, %p)\n", TuneIndex, TuneName);
+
+	SIMTRACE("RimGetTuneName", "%u, %p", TuneIndex, TuneName);
 
 	return 0;
 }

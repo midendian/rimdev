@@ -4,7 +4,8 @@
 
 void sim_LcdClearDisplay(void)
 {
-	printf("sim: LcdClearDisplay()\n");
+
+	SIMTRACE_NOARG("LcdClearDisplay");
 
 	return;
 }

@@ -4,7 +4,8 @@
 
 void sim_RimInvokeTaskSwitcher(void)
 {
-	printf("sim: RimInvokeTaskSwitcher()\n");
+
+	SIMTRACE_NOARG("RimInvokeTaskSwitcher");
 
 	return;
 }

@@ -4,7 +4,8 @@
 
 TASK sim_RimGetAlarm(TIME *time)
 {
-	printf("sim: RimGetAlarm(%p)\n", time);
+
+	SIMTRACE("RimGetAlarm", "%p", time);
 
 	return 0;
 }

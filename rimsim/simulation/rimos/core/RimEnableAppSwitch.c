@@ -4,7 +4,8 @@
 
 BOOL sim_RimEnableAppSwitch(void)
 {
-	printf("sim: RimEnableAppSwitch()\n");
+
+	SIMTRACE_NOARG("RimEnableAppSwitch");
 
 	return FALSE;
 }

@@ -4,7 +4,8 @@
 
 void sim_RadioDeregister(void)
 {
-	printf("sim: RadioDeregister()\n");
+
+	SIMTRACE_NOARG("RadioDeregister");
 
 	rim_task_current->flags &= ~RIM_TASKFLAG_WANTSRADIO;
 

@@ -4,7 +4,8 @@
 
 TASK sim_RimGetForegroundApp(void)
 {
-	printf("sim: RimGetForegroundApp()\n");
+
+	SIMTRACE_NOARG("RimGetForegroundApp");
 
 	return 0;
 }

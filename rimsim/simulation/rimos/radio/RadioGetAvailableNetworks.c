@@ -5,7 +5,7 @@
 void sim_RadioGetAvailableNetworks(NETWORKS_INFO *info)
 {
 
-	printf("sim: RadioGetAvailableNetworks(%p)\n", info);
+	SIMTRACE("RadioGetAvailableNetworks", "%p", info);
 
 	return;
 }

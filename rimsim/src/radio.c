@@ -41,7 +41,7 @@
  * /dev/net/tun.)
  *
  */
-#undef RIM_USETAP
+#define RIM_USETAP
 
 /*
  * HPID to use for IP datagrams.

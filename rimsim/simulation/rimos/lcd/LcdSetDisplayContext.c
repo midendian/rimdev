@@ -4,7 +4,8 @@
 
 int sim_LcdSetDisplayContext(int iDC)
 {
-	printf("sim: LcdSetDisplayContext(%d)\n", iDC);
+
+	SIMTRACE("LcdSetDisplayContext", "%d", iDC);
 
 	return 0;
 }

@@ -4,7 +4,8 @@
 
 void sim_RimKillTimer(DWORD timerID)
 {
-	printf("sim: RimKillTimer(%ld)\n", timerID);
+
+	SIMTRACE("RimKillTimer", "%ld", timerID);
 
 	timer_kill(rim_task_current, timerID);
 

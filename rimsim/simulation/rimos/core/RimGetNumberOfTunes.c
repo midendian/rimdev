@@ -4,7 +4,8 @@
 
 unsigned int sim_RimGetNumberOfTunes(void)
 {
-	printf("sim: RimGetNumberOfTunes()\n");
+
+	SIMTRACE_NOARG("RimGetNumberOfTunes");
 
 	return 0;
 }

@@ -4,7 +4,8 @@
 
 void sim_RimSleep(DWORD ticks)
 {
-	printf("sim: RimSleep(%ld)\n", ticks);
+
+	SIMTRACE("RimSleep", "%ld", ticks);
 
 	return;
 }

@@ -4,7 +4,8 @@
 
 void sim_RimGetAlertConfiguration(AlertConfiguration *alertConfig)
 {
-	printf("sim: RimGetAlertConfiguration(%p)\n", alertConfig);
+
+	SIMTRACE("RimGetAlertConfiguration", "%p", alertConfig);
 
 	return;
 }

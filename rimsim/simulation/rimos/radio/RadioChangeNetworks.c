@@ -5,7 +5,7 @@
 void sim_RadioChangeNetworks(DWORD NetworkId, BYTE *NetworkName)
 {
 
-	printf("sim: RadioChangeNetworks(%lu, %p)\n", NetworkId, NetworkName);
+	SIMTRACE("RadioChangeNetworks", "%lu, %p", NetworkId, NetworkName);
 
 	return;
 }

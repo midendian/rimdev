@@ -4,7 +4,8 @@
 
 void sim_RimAlertNotify(int notify, int maxRepeats)
 {
-	printf("sim: RimAlertNotify(%d, %d)\n", notify, maxRepeats);
+
+	SIMTRACE("RimAlertNotify", "%d, %d", notify, maxRepeats);
 
 	return;
 }

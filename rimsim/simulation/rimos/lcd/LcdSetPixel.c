@@ -4,7 +4,8 @@
 
 void sim_LcdSetPixel(int x, int y, BOOL value)
 {
-	printf("sim: LcdSetPixel(%d, %d, %d)\n", x, y, value);
+
+	SIMTRACE("LcdSetPixel", "%d, %d, %d", x, y, value);
 
 	return;
 }

@@ -4,7 +4,8 @@
 
 long sim_RimGetIdleTime(void)
 {
-	printf("sim: RimGetIdleTime()\n");
+
+	SIMTRACE_NOARG("RimGetIdleTime");
 
 	return 0;
 }

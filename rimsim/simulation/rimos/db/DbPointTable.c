@@ -4,7 +4,8 @@
 
 void const * const *sim_DbPointTable(void)
 {
-	printf("sim: DbPointTable()\n");
+
+	SIMTRACE_NOARG("DbPointTable");
 
 	return NULL;
 }

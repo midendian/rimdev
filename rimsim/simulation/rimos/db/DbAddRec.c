@@ -4,7 +4,8 @@
 
 HandleType sim_DbAddRec(HandleType db, unsigned size, const void *data)
 {
-	printf("sim: DbAddRec(%u, %u, %p)\n", db, size, data);
+
+	SIMTRACE("DbAddRec", "%u, %u, %p", db, size, data);
 
 	return 0;
 }

@@ -11,7 +11,7 @@
 long sim_RimGetTicks(void)
 {
 
-	printf("sim: RimGetTicks()\n");
+	SIMTRACE_NOARG("RimGetTicks");
 
 	return timer_getticks();
 }

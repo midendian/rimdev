@@ -4,7 +4,8 @@
 
 void sim_LcdClearToEndOfLine(void)
 {
-	printf("sim: LcdClearToEndOfLine()\n");
+
+	SIMTRACE_NOARG("LcdClearToEndOfLine");
 
 	return;
 }

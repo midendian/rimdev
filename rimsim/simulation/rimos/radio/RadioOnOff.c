@@ -6,7 +6,7 @@ int sim_RadioOnOff(int mode)
 {
 	int oldstate;
 
-	printf("sim: RadioOnOff(%d)\n", mode);
+	SIMTRACE("RadioOnOff", "%d", mode);
 
 	oldstate = radio_getstate() ? RADIO_ON : RADIO_OFF;
 

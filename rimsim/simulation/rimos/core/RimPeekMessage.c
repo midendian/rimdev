@@ -4,7 +4,8 @@
 
 BOOL sim_RimPeekMessage(void)
 {
-	printf("sim: RimPeekMessage()\n");
+
+	SIMTRACE_NOARG("RimPeekMessage");
 
 	return FALSE;
 }

@@ -4,7 +4,8 @@
 
 int sim_LcdGetDisplayContext(void)
 {
-	printf("sim: LcdGetDisplayContext()\n");
+
+	SIMTRACE_NOARG("LcdGetDisplayContext");
 
 	return 0;
 }

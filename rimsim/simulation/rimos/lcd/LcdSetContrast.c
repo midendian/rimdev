@@ -5,7 +5,7 @@
 void sim_LcdSetContrast(int contrast)
 {
 
-	printf("sim: LcdSetContrast(%d)\n", contrast);
+	SIMTRACE("LcdSetContrast", "%d", contrast);
 
 	return;
 }

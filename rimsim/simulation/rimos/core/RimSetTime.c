@@ -4,7 +4,8 @@
 
 BOOL sim_RimSetTime(TIME *time)
 {
-	printf("sim: RimSetTime(%p)\n", time);
+
+	SIMTRACE("RimSetTime", "%p", time);
 
 	return FALSE;
 }

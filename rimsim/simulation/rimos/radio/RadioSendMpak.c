@@ -7,7 +7,7 @@ int sim_RadioSendMpak(MPAK_HEADER *header, BYTE *data, int length)
 	unsigned char *outbuf = NULL;
 	int i = 0, tag;
 
-	printf("sim: RadioSendMpak(%p, %p, %d)\n", header, data, length);
+	SIMTRACE("RadioSendMpak", "%p, %p, %d", header, data, length);
 
 	if (!(rim_task_current->flags & RIM_TASKFLAG_WANTSRADIO))
 		return RADIO_APP_NOT_REGISTERED;

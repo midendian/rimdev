@@ -5,21 +5,22 @@
 static void dumptask(rim_task_t *tsk)
 {
 
-	printf("Current task:\n");
-	printf("\tName: %s\n", tsk->name);
-	printf("\tFlags: 0x%08lx\n", tsk->flags);
-	printf("\tTask ID: %ld\n", tsk->taskid);
-	printf("\tParent Task: %ld\n", tsk->parent);
-	printf("\tStack size: %ld\n", tsk->stacksize);
-	printf("\tRunnable: %s\n", tsk->runnable ? "yes" : "no");
-	printf("\tThread ID: %ld\n", tsk->tid);
+	fprintf(stderr, "Current task:\n");
+	fprintf(stderr, "\tName: %s\n", tsk->name);
+	fprintf(stderr, "\tFlags: 0x%08lx\n", tsk->flags);
+	fprintf(stderr, "\tTask ID: %ld\n", tsk->taskid);
+	fprintf(stderr, "\tParent Task: %ld\n", tsk->parent);
+	fprintf(stderr, "\tStack size: %ld\n", tsk->stacksize);
+	fprintf(stderr, "\tRunnable: %s\n", tsk->runnable ? "yes" : "no");
+	fprintf(stderr, "\tThread ID: %ld\n", tsk->tid);
 
 	return;
 }
 
 void sim_RimCatastrophicFailure(char *FailureMessage)
 {
-	printf("sim: RimCatastrophicFailure(%s)\n", FailureMessage);
+
+	SIMTRACE("RimCatastrophicFailure", "%s", FailureMessage);
 
 	dumptask(rim_task_current);
 

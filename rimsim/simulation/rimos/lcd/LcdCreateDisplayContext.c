@@ -4,7 +4,8 @@
 
 int sim_LcdCreateDisplayContext(int displayToCopy)
 {
-	printf("sim: LcdCreateDisplayContext(%d)\n", displayToCopy);
+
+	SIMTRACE("LcdCreateDisplayContext", "%d", displayToCopy);
 
 	return 0;
 }

@@ -4,7 +4,8 @@
 
 void sim_RimSetPID(PID *pid)
 {
-	printf("sim: RimSetPID({%s, %d, %p})\n", pid->Name, pid->EnableForeground, pid->Icon);
+
+	SIMTRACE("RimSetPID", "{%s, %d, %p}", pid->Name, pid->EnableForeground, pid->Icon);
 
 	return;
 }

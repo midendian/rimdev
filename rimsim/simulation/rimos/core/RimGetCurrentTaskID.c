@@ -4,7 +4,8 @@
 
 TASK sim_RimGetCurrentTaskID(void)
 {
-	printf("sim: RimGetCurrentTaskID()\n");
+
+	SIMTRACE_NOARG("RimGetCurrentTaskID");
 
 	return 0;
 }

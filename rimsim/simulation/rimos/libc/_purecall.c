@@ -4,7 +4,8 @@
 
 void sim__purecall(void)
 {
-	printf("sim: _purecall()\n");
+
+	SIMTRACE_NOARG("_purecall");
 
 	return;
 }

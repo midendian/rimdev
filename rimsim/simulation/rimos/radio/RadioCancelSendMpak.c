@@ -5,7 +5,7 @@
 int sim_RadioCancelSendMpak(int mpakTag)
 {
 
-	printf("sim: RadioCancelSendMpak(%d)\n", mpakTag);
+	SIMTRACE("RadioCancelSendMpak", "%d", mpakTag);
 
 	return -1;
 }

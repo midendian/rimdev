@@ -4,7 +4,8 @@
 
 void sim_RimToggleMessageReceiving(BOOL recieveMessages)
 {
-	printf("sim: RimToggleMessageReceiving(%d)\n", recieveMessages);
+
+	SIMTRACE("RimToggleMessageReceiving", "%d", recieveMessages);
 
 	return;
 }

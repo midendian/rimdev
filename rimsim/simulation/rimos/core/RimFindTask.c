@@ -4,7 +4,8 @@
 
 TASK sim_RimFindTask(char *prefix)
 {
-	printf("sim: RimFindTask(%s)\n", prefix);
+
+	SIMTRACE("RimFindTask", "%s", prefix);
 
 	return 0;
 }

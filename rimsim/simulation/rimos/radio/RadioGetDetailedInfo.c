@@ -5,7 +5,7 @@
 void sim_RadioGetDetailedInfo(RADIO_INFO *info)
 {
 
-	printf("sim: RadioGetDetailedInfo(%p)\n", info);
+	SIMTRACE("RadioGetDetailedInfo", "%p", info);
 
 	if (!info)
 		return;

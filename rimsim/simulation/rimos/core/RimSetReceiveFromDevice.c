@@ -4,7 +4,8 @@
 
 void sim_RimSetReceiveFromDevice(DWORD device, BOOL recieveFrom)
 {
-	printf("sim: RimSetReceiveFromDevice(%ld, %d)\n", device, recieveFrom);
+
+	SIMTRACE("RimSetReceiveFromDevice", "%ld, %d", device, recieveFrom);
 
 	return;
 }

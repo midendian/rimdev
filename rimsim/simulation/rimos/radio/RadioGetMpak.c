@@ -15,7 +15,7 @@ int sim_RadioGetMpak(int mpakTag, MPAK_HEADER *header, BYTE *data)
 	int fullbuflen = RIM_MAXMOBITEX_BUFLEN;
 	int i = 0;
 
-	printf("sim: RadioGetMpak(%d, %p, %p)\n", mpakTag, header, data);
+	SIMTRACE("RadioGetMpak", "%d, %p, %p", mpakTag, header, data);
 
 	if (!(rim_task_current->flags & RIM_TASKFLAG_WANTSRADIO))
 		return RADIO_APP_NOT_REGISTERED;

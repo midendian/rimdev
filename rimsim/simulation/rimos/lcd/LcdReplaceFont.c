@@ -4,7 +4,8 @@
 
 int sim_LcdReplaceFont(int iFontIndex, const FontDefinition *pNewFont)
 {
-	printf("sim: LcdReplaceFont(%d, %p)\n", iFontIndex, pNewFont);
+
+	SIMTRACE("LcdReplaceFont", "%d, %p", iFontIndex, pNewFont);
 
 	return 0;
 }

@@ -4,7 +4,8 @@
 
 BOOL sim_RimRequestForeground(TASK hTask)
 {
-	printf("sim: RimRequestForeground(%ld)\n", hTask);
+
+	SIMTRACE("RimRequestForeground", "%ld", hTask);
 
 	return TRUE;
 }

@@ -4,7 +4,8 @@
 
 void sim_RimGetDateTime(TIME *time)
 {
-	printf("sim: RimGetDateTime(%p)\n", time);
+
+	SIMTRACE("RimGetDateTime", "%p", time);
 
 	return;
 }

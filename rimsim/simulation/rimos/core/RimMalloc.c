@@ -5,7 +5,7 @@
 void *sim_RimMalloc(DWORD size)
 {
 
-	printf("sim: RimMalloc(%ld)\n", size);
+	SIMTRACE("RimMalloc", "%ld", size);
 
 	return malloc(size);
 }

@@ -4,7 +4,8 @@
 
 void sim_LcdIconsEnable(BOOL Enable)
 {
-	printf("sim: LcdIconsEnable(%d)\n", Enable);
+
+	SIMTRACE("LcdIconsEnable", "%d", Enable);
 
 	return;
 }

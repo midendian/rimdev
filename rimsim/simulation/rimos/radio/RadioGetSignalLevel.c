@@ -5,7 +5,7 @@
 int sim_RadioGetSignalLevel(void)
 {
 
-	printf("sim: RadioGetSignalLevel()\n");
+	SIMTRACE_NOARG("RadioGetSignalLevel");
 
 	return radio_getrssi();
 }

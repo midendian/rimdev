@@ -4,7 +4,8 @@
 
 int sim_LcdGetCharacterWidth(char c, int fontIndex)
 {
-	printf("sim: LcdGetCharacterWidth(%c, %d)\n", c, fontIndex);
+
+	SIMTRACE("LcdGetCharacterWidth", "%c, %d", c, fontIndex);
 
 	return 4;
 }

@@ -5,7 +5,7 @@
 void sim_RimFree(void *block)
 {
 
-	printf("sim: RimFree(%p)\n", block);
+	SIMTRACE("RimFree", "%p", block);
 
 	free(block);
 

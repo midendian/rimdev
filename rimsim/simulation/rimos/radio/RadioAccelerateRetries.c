@@ -5,7 +5,7 @@
 void sim_RadioAccelerateRetries(int mpakTag)
 {
 
-	printf("sim: RadioAccelerateRetries(%d)\n", mpakTag);
+	SIMTRACE("RadioAccelerateRetries", "%d", mpakTag);
 
 	return;
 }

@@ -4,7 +4,8 @@
 
 BOOL sim_RimWaitForSpecificMessage(MESSAGE *msg, MESSAGE *compare, DWORD mask)
 {
-	printf("sim: RimWaitForSpecificMessage(%p, %p, 0x%08lx)\n", msg, compare, mask);
+
+	SIMTRACE("RimWaitForSpecificMessage", "%p, %p, 0x%08lx", msg, compare, mask);
 
 	return FALSE;
 }

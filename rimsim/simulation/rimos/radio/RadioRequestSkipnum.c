@@ -5,7 +5,7 @@
 int sim_RadioRequestSkipnum(SKIPNUM_INFO *SkipInfo, int Skipnum)
 {
 
-	printf("sim: RadioRequestSkipnum(%p, %d)\n", SkipInfo, Skipnum);
+	SIMTRACE("RadioRequestSkipnum", "%p, %d", SkipInfo, Skipnum);
 
 	return -1;
 }

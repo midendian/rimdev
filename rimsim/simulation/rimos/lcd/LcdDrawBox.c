@@ -4,7 +4,8 @@
 
 void sim_LcdDrawBox(int iDrawingMode, int x1, int y1, int x2, int y2)
 {
-	printf("sim: LcdDrawBox(%d, %d, %d, %d, %d)\n", iDrawingMode, x1, y1, x2, y2);
+
+	SIMTRACE("LcdDrawBox", "%d, %d, %d, %d, %d", iDrawingMode, x1, y1, x2, y2);
 
 	return;
 }

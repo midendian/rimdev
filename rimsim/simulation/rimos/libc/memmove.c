@@ -4,7 +4,8 @@
 
 void *sim_memmove(void *dest, const void *src, size_t len)
 {
-	printf("sim: memmove(%p, %p, %d)\n", dest, src, len);
 
-	return NULL;
+	SIMTRACE("memmove", "%p, %p, %d", dest, src, len);
+
+	return memmove(dest, src, len);
 }

@@ -4,7 +4,8 @@
 
 void sim_RimSetLed(int LedNumber, int LedState)
 {
-	printf("sim: RimSetLed(%d, %d)\n", LedNumber, LedState);
+
+	SIMTRACE("RimSetLed", "%d, %d", LedNumber, LedState);
 
 	return;
 }

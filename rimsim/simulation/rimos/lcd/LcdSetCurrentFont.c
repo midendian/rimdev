@@ -4,7 +4,8 @@
 
 int sim_LcdSetCurrentFont(int iFontIndex)
 {
-	printf("sim: LcdSetCurrentFont(%d)\n", iFontIndex);
+
+	SIMTRACE("LcdSetCurrentFont", "%d", iFontIndex);
 
 	return 0;
 }

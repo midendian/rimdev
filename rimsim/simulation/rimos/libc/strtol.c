@@ -4,7 +4,8 @@
 
 long sim_strtol(const char *nptr, char **endptr, int base)
 {
-	printf("sim: strtol(%s, %p, %d)\n", nptr, endptr, base);
+
+	SIMTRACE("strtol", "%s, %p, %d", nptr, endptr, base);
 
 	return 0;
 }
