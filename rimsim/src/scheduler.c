@@ -86,6 +86,9 @@ TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 	newtask->msgqueue = NULL;
 	pthread_mutex_init(&newtask->msglock, NULL);
 
+	newtask->timers = NULL;
+	pthread_mutex_init(&newtask->timerlock, NULL);
+
 	/* If it has no parent, automatically give it foreground access. */
 	if (newtask->parent == RIM_TASK_NOPARENT)
 		newtask->flags |= RIM_TASKFLAG_ENABLEFOREGROUND;
@@ -185,12 +188,41 @@ void firstschedule(void)
 	time(&lastslicestart);
 
 	for (;;) {
+
 #ifdef DEBUG_SCHEDULE
 		fprintf(stderr, "main thread sleeping...\n");
 #endif
-		sleep(5);
+		sleep(1);
+
 		if ((time(NULL) - lastslicestart) > 5)
 			sim_RimCatastrophicFailure("Error 96: watchpuppy hath barked");
+
+		/* XXX should really lock the task list... */
+		for (cur = rim_task_list; cur; cur = cur->next) {
+			rim_timer_t *t;
+
+			/* XXX actually support things other than PERIODIC */
+			pthread_mutex_lock(&cur->timerlock);
+			for (t = cur->timers; t; t = t->next) {
+
+				if (t->type == TIMER_PERIODIC) {
+
+					if ((timer_getticks() - t->lastfire) >= t->time) {
+						MESSAGE msg;
+
+						msg.Device = DEVICE_TIMER;
+						msg.Event = t->id;
+
+						sendmessageto(cur, &msg, RIM_TASK_INVALID);
+
+						t->lastfire = sim_RimGetTicks();
+					}
+
+				}
+			}
+			pthread_mutex_unlock(&cur->timerlock);
+		}
+
 	}
 
 	return;
@@ -207,7 +239,14 @@ void schedule(void)
 #endif
 	TASK_PUTTOSLEEP(caller);
 
-	/* Switch to the next task */
+	/* 
+	 * Switch to the next task 
+	 *
+	 * XXX This should only switch to a task that has pending
+	 * messages (other than yourself).  (RimTaskYield should
+	 * return immediatly if there are no tasks waiting for
+	 * messages.)
+	 */
 	if (rim_task_current->next)
 		rim_task_current = rim_task_current->next;
 	else
@@ -233,6 +272,80 @@ void schedule(void)
 		abort();
 
 	return;
+}
+
+static rim_timer_t *findtimer(rim_task_t *task, unsigned long id)
+{
+	rim_timer_t *cur;
+
+	for (cur = task->timers; cur; cur = cur->next) {
+		if (cur->id == id)
+			return cur;
+	}
+
+	return NULL;
+}
+
+int timer_set(rim_task_t *task, unsigned long id, int type, unsigned long time)
+{
+	rim_timer_t *t;
+
+	pthread_mutex_lock(&task->timerlock);
+	if (findtimer(task, id)) {
+		pthread_mutex_unlock(&task->timerlock);
+		return -1;
+	}
+
+	if (!(t = malloc(sizeof(rim_timer_t)))) {
+		pthread_mutex_unlock(&task->timerlock);
+		return -1;
+	}
+
+	t->id = id;
+	t->type = type;
+	t->time = time;
+	t->lastfire = 0;
+
+	t->next = task->timers;
+	task->timers = t;
+
+	pthread_mutex_unlock(&task->timerlock);
+
+	return 0;
+}
+
+void timer_kill(rim_task_t *task, unsigned long id)
+{
+	rim_timer_t *cur, **prev;
+
+	pthread_mutex_lock(&task->timerlock);
+	for (prev = &task->timers; (cur = *prev); ) {
+
+		if (cur->id == id) {
+			*prev = cur->next;
+			free(cur);
+			return;
+		}
+
+		prev = &cur->next;
+	}
+	pthread_mutex_unlock(&task->timerlock);
+
+	return;
+}
+
+unsigned long timer_getticks(void)
+{
+	struct timeval tv;
+	struct timezone tz;
+	struct timeval diff;
+
+	if (gettimeofday(&tv, &tz) == -1)
+		return 0; /* erm */
+
+	timersub(&tv, &rim_bootuptv, &diff);
+
+	return (diff.tv_sec * 100) + (diff.tv_usec / 10000);
 }
 
 #if 0 /* old non-threads stuff */

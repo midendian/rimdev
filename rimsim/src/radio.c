@@ -6,21 +6,32 @@
  * used in combination with a real radio, as long as the HPID doesn't
  * conflict with HPID's you want to use on the real radio.
  *
- * On initialization, the tap0 device will be dynamically created (via
+ * On initialization, the tun0 device will be dynamically created (via
  * /dev/net/tun and an ioctl). Before any data can be passed and the pipe
  * to be functional, someone must give it an IP address, shut ARP off, 
- * and set the MTU to something resonable for MOBITEX:
+ * give an endpoint address, and set the MTU to something resonable for 
+ * MOBITEX:
  *
- * /sbin/ifconfig tap0 \
+ * /sbin/ifconfig tun0 \
  *    10.0.4.1 netmask 255.255.255.0 broadcast 10.0.4.255 \
- *     -arp mtu 512
+ *    pointopoint 10.0.4.2 -arp mtu 512
  * 
  * This will set up your RIM subnet to be 10.0.4.0/24.  You can then ping
- * the emulated RIM, at 10.0.4.2:
- *   ping 10.0.4.2
- *    PING 10.0.4.2 (10.0.4.2) from 10.0.4.1 : 56(84) bytes of data.
+ * the emulated RIM, at 10.0.4.2, assuming you're running InterMobi:
+ *   [root@hanwavel /root]# ping 10.0.4.2
+ *   PING 10.0.4.2 (10.0.4.2) from 10.0.4.1 : 56(84) bytes of data.
+ *   64 bytes from 10.0.4.2: icmp_seq=0 ttl=64 time=495.951 msec
+ *   64 bytes from 10.0.4.2: icmp_seq=1 ttl=64 time=400.697 msec
+ *   64 bytes from 10.0.4.2: icmp_seq=2 ttl=64 time=365.446 msec
+ *   64 bytes from 10.0.4.2: icmp_seq=3 ttl=64 time=400.564 msec
+ *   64 bytes from 10.0.4.2: icmp_seq=4 ttl=64 time=470.560 msec
  *
- * Note that because of the way TUN/TAP works, ifconfig must be rerun ever
+ *   --- 10.0.4.2 ping statistics ---
+ *   5 packets transmitted, 5 packets received, 0% packet loss
+ *   round-trip min/avg/max/mdev = 365.446/426.643/495.951/48.648 ms
+ *
+ *
+ * Note that because of the way TUN/TAP works, ifconfig must be rerun every
  * time the simulator is invoked, as the device is dynamically created and
  * destroyed based on whether there is an open file descriptor attached to
  * it or not.  This is annoying.  It would probably be possible to have
@@ -61,7 +72,7 @@
 /* 
  * The Gateway IP address (10.0.4.1) 
  *
- * This should be set to the address of tap0.
+ * This should be set to the address of tun0.
  *
  */
 #define RIM_TAP_GATEWAYIP MAKEIP(10,0,4,1)
@@ -239,7 +250,7 @@ static void *radio_thread(void *arg)
 				struct {
 					/* The pi field from TUN/TAP is misdocumented as 32bits */
 					//unsigned long pi  __attribute__((__packed__));
-					//char etherhdr[16] __attribute__((__packed__));
+					//char etherhdr[14] __attribute__((__packed__));
 					struct iphdr ip __attribute__((__packed__));
 				} fmt;
 				unsigned char raw[65536] __attribute__((__packed__));
@@ -251,7 +262,7 @@ static void *radio_thread(void *arg)
 			}
 
 			fprintf(stderr, "radio_thread: tap: read %d bytes from %s\n", len, args->tapname);
-#if 0
+#if 1
 			dumpbox(u.raw, len);
 #endif
 
@@ -269,7 +280,7 @@ static void *radio_thread(void *arg)
 #endif
 
 			if (ntohs(u.fmt.ip.tot_len) > 512) {
-				fprintf(stderr, "tap: packet too large! (%d)  please set the MTU on tap0 to be 512\n", ntohs(u.fmt.ip.tot_len));
+				fprintf(stderr, "tap: packet too large! (%d)  please set the MTU on tun0 to be 512\n", ntohs(u.fmt.ip.tot_len));
 				continue;
 			}
 
@@ -659,7 +670,6 @@ static int dotx_tap(struct radio_thread_args *args, struct mpak_slot *slot)
 	if (!(pkt = malloc((pktlen))))
 		return 0;
 
-	//memset(pkt, 0, 4);
 	memcpy(pkt, slot->buf+12, slot->buflen-12);
 
 	fprintf(stderr, "dotx_tap: (two_\n");

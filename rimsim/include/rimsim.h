@@ -15,10 +15,13 @@
 #include <sys/mman.h>
 #include <time.h>
 #include <stdarg.h>
+#include <sys/time.h>
 
 #include <simrimos.h>
 
 #include <pthread.h>
+
+extern struct timeval rim_bootuptv;
 
 #define RIM_MAXAPPNAMELEN 64
 
@@ -37,6 +40,14 @@ typedef struct rim_msg_s {
 	MESSAGE *msg;
 	struct rim_msg_s *next;
 } rim_msg_t;
+
+typedef struct rim_timer_s {
+	unsigned long id;
+	int type; /* TIME_ONE_SHOT, TIMER_PERIODIC or TIMER_ABSOLUTE */
+	unsigned long time; /* interval or absolute time */
+	unsigned long lastfire;
+	struct rim_timer_s *next;
+} rim_timer_t;
 
 typedef void (*rim_entry_t)(void) __attribute__((__cdecl__));
 typedef struct rim_task_s {
@@ -59,6 +70,8 @@ typedef struct rim_task_s {
 	rim_msg_t *msgqueue;
 	pthread_mutex_t msglock;
 #endif
+	rim_timer_t *timers;
+	pthread_mutex_t timerlock;
 	struct rim_task_s *next;
 } rim_task_t;
 
@@ -82,6 +95,11 @@ int radio_getstate(void);
 int radio_getrssi(void);
 unsigned long radio_getman(void);
 unsigned long radio_getesn(void);
+
+int timer_set(rim_task_t *task, unsigned long id, int type, unsigned long time);
+void timer_kill(rim_task_t *task, unsigned long id);
+
+unsigned long timer_getticks(void);
 
 #define RIM_MAXMOBITEX_BUFLEN 560
 int radio_retrievempak(int tag, unsigned char *destbuf, int destbuflen);

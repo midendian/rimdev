@@ -356,6 +356,10 @@ void sim_KeypadRate(WORD Delay, WORD Rate);
 BOOL sim_KeypadRegister(DWORD key);
 #endif
 
+#define TIMER_PERIODIC 1
+#define TIMER_ONE_SHOT 2
+#define TIMER_ABSOLUTE 3
+
 #pragma pack(4) /* XXX */
 
 #endif /* __SIMRIMOS_H__ */

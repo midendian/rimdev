@@ -1555,11 +1555,16 @@ void debugprintf(const char *fmt, va_list ap)
 	return;
 }
 
+struct timeval rim_bootuptv;
+
 int main(int argc, char **argv)
 {
 	int i;
 	int loadit = 0;
 	char *rappath = NULL;
+	struct timezone tz;
+
+	gettimeofday(&rim_bootuptv, &tz);
 
 	if (gui_start(&argc, &argv) == -1)
 		return -1;
