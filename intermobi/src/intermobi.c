@@ -242,6 +242,11 @@ static int ip_consumepacket(unsigned char *pkt, int pktlen)
 		return 0;
 	}
 
+	if (ntohl(hdr->saddr) == INTERMOBI_OURIP)
+		return 1; /* bounced somehow */
+	if (ntohl(hdr->daddr) != INTERMOBI_OURIP)
+		return 1; /* not bound for us */
+
 	for (i = 0; protocols[i].name; i++) {
 		if (protocols[i].protnum == hdr->prot) {
 			if (protocols[i].handler(

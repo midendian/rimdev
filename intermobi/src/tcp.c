@@ -320,8 +320,7 @@ static struct tcp_socket *tcp_accept(struct tcp_socket *listener, unsigned long 
 	sk->remoteaddr = remoteaddr;
 	sk->remoteport = remoteport;
 	sk->rcv_nxt = seqnum+1;
-	sk->snd_una = 0; /* set by tcp_send_syn() */
-	sk->snd_nxt = tcp_genisn();
+	sk->snd_una = sk->snd_nxt = tcp_genisn();
 	sk->txqueue = NULL;
 	sk->datahandler = listener->datahandler;
 	tcp_changestate(sk, STATE_SYN_RCVD);
@@ -479,8 +478,8 @@ static unsigned short tcp_checksum(unsigned char *buf, int buflen, unsigned long
 	phdr.prot = IPPROTO_TCP;
 	phdr.len = htons(buflen);
 
-	csum = ~(ntohs(csum_partial(&phdr, 12)) + 
-			 ntohs(csum_partial(buf, buflen))) & 0xffff;
+	csum = ~((ntohs(csum_partial(&phdr, 12)) + 
+			 ntohs(csum_partial(buf, buflen))) & 0xffff);
 
 	csum = htons(csum);
 
@@ -547,6 +546,12 @@ static void tcp_txenqueue(struct tcp_socket *sk, unsigned char flags, unsigned l
 			;
 		cur->next = vec;
 	}
+
+	if (flags & TCPBIT_SYN)
+		sk->snd_nxt++;
+	sk->snd_nxt += buflen;
+	if (flags & TCPBIT_FIN)
+		sk->snd_nxt++;
 
 	return;
 }
@@ -690,10 +695,8 @@ static int tcp_send_data(struct tcp_socket *sk, const unsigned char *data, int d
 	unsigned long seqnum;
 
 	/* First, enqueue the new data and increment the next seqnum */
-	if (data && datalen) {
+	if (data && datalen)
 		tcp_txenqueue(sk, 0, sk->snd_nxt, bufdup(data, datalen), datalen);
-		sk->snd_nxt += datalen;
-	}
 
 	for (cur = sk->txqueue, datalen = 0, seqnum = sk->snd_nxt; 
 		 cur; cur = cur->next) {
@@ -842,11 +845,11 @@ static int tcp_consumeseg(struct tcp_socket *sk, unsigned long srcip, unsigned c
 
 	if ((pktlen - (hdr->hdrlen*4)) > 0) { /* we have data! */
 
-		dprintf("REAL DATA!!!\n");
+		dprintf("*********REAL DATA!!! %u+(%u-%u)=%u\n", ntohl(hdr->seqnum), pktlen, hdr->hdrlen*4, ntohl(hdr->seqnum)+(pktlen-(hdr->hdrlen*4)));
 		dumpbox(pkt+(hdr->hdrlen*4), pktlen-(hdr->hdrlen*4));
 
 		/* XXX implement delayed ACKs and mitigate ACK-only segments */
-		sk->rcv_nxt = ntohl(hdr->seqnum)+(pktlen-(hdr->hdrlen*4))+0;
+		sk->rcv_nxt = ntohl(hdr->seqnum)+(pktlen-(hdr->hdrlen*4))+1;
 		if (!sk->datahandler || 
 			!sk->datahandler(sk, pkt+(hdr->hdrlen*4), pktlen-(hdr->hdrlen*4)))
 			tcp_send_ack(sk);

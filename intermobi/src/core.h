@@ -15,7 +15,7 @@ unsigned short csum_partial(void *buf, unsigned int len);
 #define IPPROTO_TCP  0x06
 #define IPPROTO_UDP  0x11
 
-#if 0
+#if 1
 #define INTERMOBI_OURIP      0x0a000402
 #else
 #define INTERMOBI_OURIP      0xc0a80afa
