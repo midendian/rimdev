@@ -12,7 +12,7 @@ SDKPREFIX=/home/mid/rimsdk/
 CFLAGS=-Wall -g -ffreestanding -nostdinc -nostdinc++ -I$(SDKPREFIX)/include -I$(SDKPREFIX)/include/Internal
 
 DLLNAME=intermobi
-OBJECTS=intermobi.o
+OBJECTS=intermobi.o util.o tcp.o icmp.o udp.o
 LIBDIR=$(SDKPREFIX)/lib
 LIBS=$(LIBDIR)/OSEntry.obj $(LIBDIR)/rimos.lib
 ENTRYPOINT=__DllMainCRTStartup@12
