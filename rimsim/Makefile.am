@@ -1,3 +1,3 @@
 
-SUBDIRS = include src
+SUBDIRS = include simulation src
 

@@ -59,18 +59,7 @@
  *
  */
 
-#include <config.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <stdarg.h>
+#include <rimsim.h>
 
 #define PE_SIG_LEN 4
 #define PE_OFF_STARTOFFSET 0x003c
@@ -281,41 +270,6 @@ typedef struct rimdll_s {
 	struct import_directory *importdir;
 } rimdll_t;
 
-/* ---------    Basic RIM Types    --------- */
-
-/* basetype.h */
-typedef int BOOL;
-typedef unsigned char BYTE;
-typedef unsigned short WORD; 
-typedef unsigned long DWORD;
-typedef DWORD TASK;
-#define TRUE 1
-#define FALSE 0
-
-typedef struct {
-	BYTE bType;
-	WORD wide;
-	WORD high;
-	BYTE *data;
-} BitMap;
-
-
-/* Rim.h */
-typedef struct {
-	DWORD Device;
-	DWORD Event;
-	DWORD SubMsg;
-	DWORD Length;
-	char *DataPtr;
-	DWORD Data[2];
-} MESSAGE;
-
-typedef struct {
-	const char *Name;
-	BOOL EnableForeground;
-	const BitMap *Icon;
-} PID;
-
 
 /* ---------    libc Emulation Functions    --------- */
 
@@ -355,45 +309,6 @@ static void sim_YAPAXI(void)
 }
 
 /* ---------    Core RIM OS Functions    --------- */
-
-typedef struct {
-	BYTE second;
-	BYTE minute;
-	BYTE hour;
-	BYTE date;
-	BYTE month;
-	BYTE day;
-	WORD year;
-	BYTE TimeZone;
-} TIME;
-
-typedef struct {
-	BYTE deviceType;
-	BYTE networkType;
-	WORD reserved1;
-	union {
-		DWORD MAN;
-		DWORD LLI;
-		BYTE reserved2[16];
-	} deviceId;
-	DWORD ESN;
-	BYTE HSN[16];
-	BYTE reserved3[24];
-} DEVICE_INFO;
-
-typedef int (__attribute__((__cdecl__)) *CALLBACK_FUNC)(MESSAGE *);
-
-typedef struct {
-	BYTE duty;
-	BYTE volume;
-	BYTE maxVolume;
-	BYTE repetitions;
-	BYTE vibrateTime;
-	BYTE vibrateType;
-	BYTE inHolsterNotify;
-	BYTE outOfHolsterNotify;
-	BYTE pause;
-} AlertConfiguration;
 
 static void sim_RimGetDeviceInfo(DEVICE_INFO *Info)
 {
@@ -716,18 +631,6 @@ static void sim_RimCatastrophicFailure(char *FailureMessage)
 	return;
 }
 
-static void sim_RimDebugPrintf(const char *Format, ...)
-{
-	va_list ap;
-
-	printf("sim: RimDebugPrintf\n");
-	va_start(ap, Format);
-	vprintf(Format, ap);
-	va_end(ap);
-
-	return;
-}
-
 static int sim_RimSprintf(char *Buffer, int Maxlen, char *Fmt, ...)
 {
 	va_list ap;
@@ -746,187 +649,6 @@ static void sim_RimSetLed(int LedNumber, int LedState)
 	printf("sim: RimSetLed(%d, %d)\n", LedNumber, LedState);
 
 	return;
-}
-
-
-/* ---------    LCD API     --------- */
-
-typedef struct {
-	WORD LcdType;
-	WORD contrastRange;
-	WORD width;
-	WORD height;
-} LcdConfig;
-
-typedef struct {
-	BYTE bFontType;
-	BYTE bFirstChar;
-	BYTE bLastChar;
-	BYTE bCharHeight;
-	BYTE bCharUnderlineRow;
-	BYTE bCharWidth;
-	BYTE *bCharDefinitions;
-	WORD *wCharOffsets;
-} FontDefinition;
-
-static void sim_LcdGetConfig(LcdConfig *Config)
-{
-	printf("sim: LcdGetConfig(%p)\n", Config);
-
-	return;
-}
-
-static void sim_LcdClearToEndOfLine(void)
-{
-	printf("sim: LcdClearToEndOfLine()\n");
-
-	return;
-}
-
-static int sim_LcdPutStringXY(int x, int y, const char *s, int length, int flags)
-{
-	printf("sim: LcdPutStringXY(%d, %d, %s, %d, %d)\n", x, y, s, length, flags);
-
-	return 0;
-}
-
-static void sim_LcdClearDisplay(void)
-{
-	printf("sim: LcdClearDisplay()\n");
-
-	return;
-}
-
-static void sim_LcdCopyBitmapToDisplay(const BitMap *pbmSource, int iDisplayX, int iDisplayY)
-{
-	printf("sim: LcdCopyBitmapToDisplay(%p, %d, %d)\n", pbmSource, iDisplayX, iDisplayY);
-
-	return;
-}
-
-static void sim_LcdRasterOp(DWORD wOp, DWORD wWide, DWORD wHigh, const BitMap *src, int SrcX, int SrcY, BitMap *dest, int DestX, int DestY)
-{
-	printf("sim: LcdRasterOp(%ld, %ld, %ld, %p, %d, %d, %p, %d, %d)\n", wOp, wWide, wHigh, src, SrcX, SrcY, dest, DestX, DestY);
-
-	return;
-}
-
-static void sim_LcdDrawLine(int iDrawingMode, int x1, int y1, int x2, int y2)
-{
-	printf("sim: LcdDrawLine(%d, %d, %d, %d, %d)\n", iDrawingMode, x1, y1, x2, y2);
-
-	return;
-}
-
-static void sim_LcdDrawBox(int iDrawingMode, int x1, int y1, int x2, int y2)
-{
-	printf("sim: LcdDrawBox(%d, %d, %d, %d, %d)\n", iDrawingMode, x1, y1, x2, y2);
-
-	return;
-}
-
-static void sim_LcdSetPixel(int x, int y, BOOL value)
-{
-	printf("sim: LcdSetPixel(%d, %d, %d)\n", x, y, value);
-
-	return;
-}
-
-static void sim_LcdScroll(int pixels)
-{
-	printf("sim: LcdScroll(%d)\n", pixels);
-
-	return;
-}
-
-static void sim_LcdSetTextWindow(int x, int y, int wide, int high)
-{
-	printf("sim: LcdSetTextWindow(%d, %d, %d, %d)\n", x, y, wide, high);
-
-	return;
-}
-
-static int sim_LcdReplaceFont(int iFontIndex, const FontDefinition *pNewFont)
-{
-	printf("sim: LcdReplaceFont(%d, %p)\n", iFontIndex, pNewFont);
-
-	return 0;
-}
-
-static int sim_LcdSetCurrentFont(int iFontIndex)
-{
-	printf("sim: LcdSetCurrentFont(%d)\n", iFontIndex);
-
-	return 0;
-}
-
-static int sim_LcdGetCurrentFont(void)
-{
-	printf("sim: LcdGetCurrentFont()\n");
-
-	return 0;
-}
-
-static int sim_LcdGetCharacterWidth(char c, int fontIndex)
-{
-	printf("sim: LcdGetCharacterWidth(%c, %d)\n", c, fontIndex);
-
-	return 4;
-}
-
-static int sim_LcdGetDisplayContext(void)
-{
-	printf("sim: LcdGetDisplayContext()\n");
-
-	return 0;
-}
-
-static int sim_LcdSetDisplayContext(int iDC)
-{
-	printf("sim: LcdSetDisplayContext(%d)\n", iDC);
-
-	return 0;
-}
-
-static void sim_LcdIconsEnable(BOOL Enable)
-{
-	printf("sim: LcdIconsEnable(%d)\n", Enable);
-
-	return;
-}
-
-static int sim_LcdCreateDisplayContext(int displayToCopy)
-{
-	printf("sim: LcdCreateDisplayContext(%d)\n", displayToCopy);
-
-	return 0;
-}
-
-
-/* ---------    Database API     --------- */
-
-typedef short HandleType;
-typedef int STATUS;
-
-static void const * const *sim_DbPointTable(void)
-{
-	printf("sim: DbPointTable()\n");
-
-	return NULL;
-}
-
-static HandleType sim_DbAddRec(HandleType db, unsigned size, const void *data)
-{
-	printf("sim: DbAddRec(%u, %u, %p)\n", db, size, data);
-
-	return 0;
-}
-
-static STATUS sim_DbAndRec(HandleType rec, void *mask, unsigned size, unsigned offset)
-{
-	printf("sim: DbAndRec(%u, %p, %u, %u)\n", rec, mask, size, offset);
-
-	return 0;
 }
 
 /*
