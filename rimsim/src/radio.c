@@ -238,8 +238,8 @@ static void *radio_thread(void *arg)
 			union { /* this _must_ be packed properly! */
 				struct {
 					/* The pi field from TUN/TAP is misdocumented as 32bits */
-					unsigned short pi  __attribute__((__packed__));
-					char etherhdr[16] __attribute__((__packed__));
+					//unsigned long pi  __attribute__((__packed__));
+					//char etherhdr[16] __attribute__((__packed__));
 					struct iphdr ip __attribute__((__packed__));
 				} fmt;
 				unsigned char raw[65536] __attribute__((__packed__));
@@ -292,7 +292,7 @@ static void *radio_thread(void *arg)
 			}	
 #endif
 
-			forwardip(u.raw+18, len-18);
+			forwardip(u.raw, len);
 
 		}
 
@@ -333,7 +333,7 @@ static int tun_alloc(char *dev)
 	 *
 	 *        IFF_NO_PI - Do not provide packet information
 	 */
-	ifr.ifr_flags = IFF_TAP;
+	ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
 	if(dev && strlen(dev))
 		strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
@@ -359,7 +359,7 @@ int radio_init(const char *radiofn)
 		return -1;
 	args->rapfd = -1;
 	args->tapfd = -1;
-	strcpy(args->tapname, "tap0");
+	strcpy(args->tapname, "tun0");
 
 #ifdef RIM_USETAP
 	if ((args->tapfd = tun_alloc(args->tapname)) == -1) {
@@ -648,9 +648,27 @@ static int gethpid(const unsigned char *buf, int buflen)
 
 static int dotx_tap(struct radio_thread_args *args, struct mpak_slot *slot)
 {
+	unsigned char *pkt;
+	int pktlen;
 
-	fprintf(stderr, "dotx_rap:\n");
-	dumpbox(slot->buf, slot->buflen);
+	pktlen = slot->buflen-12;
+
+	fprintf(stderr, "dotx_tap:\n");
+	dumpbox(slot->buf+12, slot->buflen-12);
+
+	if (!(pkt = malloc((pktlen))))
+		return 0;
+
+	//memset(pkt, 0, 4);
+	memcpy(pkt, slot->buf+12, slot->buflen-12);
+
+	fprintf(stderr, "dotx_tap: (two_\n");
+	dumpbox(pkt, pktlen);
+
+	if (write(args->tapfd, pkt, pktlen) <= 0)
+		perror("radio: dotx_tap: write");
+
+	free(pkt);
 
 	return 1;
 }

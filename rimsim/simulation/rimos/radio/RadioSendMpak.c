@@ -44,7 +44,7 @@ int sim_RadioSendMpak(MPAK_HEADER *header, BYTE *data, int length)
 		if (header->MpakType == MPAK_HPDATA)
 			outbuf[i++] = header->HPID;
 
-		memcpy(data, outbuf+i, length);
+		memcpy(outbuf+i, data, length);
 		i += length;
 	}
 

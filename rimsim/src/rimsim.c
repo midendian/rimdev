@@ -1544,6 +1544,17 @@ static int createinitialtasks(void)
 	return 0;
 }
 
+void debugprintf(const char *fmt, va_list ap)
+{
+
+	gui_debugprintf(fmt, ap);
+
+	vfprintf(stderr, fmt, ap);
+	fflush(stderr);
+
+	return;
+}
+
 int main(int argc, char **argv)
 {
 	int i;

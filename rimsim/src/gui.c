@@ -66,10 +66,32 @@ static gboolean lcd_keyrelease(GtkWidget *widget, GdkEventKey *event)
 	return TRUE;
 }
 
+/* this is Bad. */
+static GtkWidget *debugtext_global = NULL;
+
+/* gaim. */
+void gui_debugprintf(const char *fmt, va_list ap)
+{
+	gchar *s;
+
+	gdk_threads_enter();
+
+	s = g_strdup_vprintf(fmt, ap);
+
+	if (debugtext_global)
+		gtk_text_insert(GTK_TEXT(debugtext_global), NULL, NULL, NULL, s, -1);
+
+	g_free(s);
+
+	gdk_threads_leave();
+
+	return;
+}
+
 int gui_start(int *argc, char ***argv)
 {
 	pthread_t guitid;
-	GtkWidget *window, *label, *vbox, *debugtext, *lcd;
+	GtkWidget *window, *label, *vbox, *debugtext, *lcd, *vscrollbar, *hbox;
 
 	g_thread_init(NULL);
 
@@ -96,13 +118,24 @@ int gui_start(int *argc, char ***argv)
 	label = gtk_label_new("And now for something completely different ...");
 	gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
 
+
+	hbox = gtk_hbox_new(FALSE, 0);
+
 	debugtext = gtk_text_new(NULL, NULL);
+	debugtext_global = debugtext;
 	gtk_text_insert(GTK_TEXT(debugtext), NULL, NULL, NULL, "Debug window\n", -1); 
-	gtk_box_pack_start(GTK_BOX(vbox), debugtext, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), debugtext, TRUE, TRUE, 0);
+
+	vscrollbar = gtk_vscrollbar_new(GTK_TEXT(debugtext)->vadj);
+	gtk_box_pack_start(GTK_BOX(hbox), vscrollbar, FALSE, FALSE, 0);
+
+	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
 
 	gtk_container_add(GTK_CONTAINER(window), vbox);
 
+	gtk_widget_show(vscrollbar);
 	gtk_widget_show(debugtext);
+	gtk_widget_show(hbox);
 	gtk_widget_show(label);
 	gtk_widget_show(vbox);
 	gtk_widget_show(lcd);

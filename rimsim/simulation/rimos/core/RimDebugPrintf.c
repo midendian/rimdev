@@ -8,7 +8,7 @@ void sim_RimDebugPrintf(const char *Format, ...)
 
 	printf("sim: RimDebugPrintf(%s)\n", Format);
 	va_start(ap, Format);
-	vfprintf(stderr, Format, ap);
+	debugprintf(Format, ap);
 	va_end(ap);
 
 	return;

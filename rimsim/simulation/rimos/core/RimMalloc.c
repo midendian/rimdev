@@ -4,7 +4,8 @@
 
 void *sim_RimMalloc(DWORD size)
 {
+
 	printf("sim: RimMalloc(%ld)\n", size);
 
-	return NULL;
+	return malloc(size);
 }
