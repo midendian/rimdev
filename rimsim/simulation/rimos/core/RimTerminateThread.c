@@ -4,7 +4,12 @@
 
 void sim_RimTerminateThread(void)
 {
-	printf("sim: RimTerminateThread()\n");
+
+	SIMTRACE_NOARG("RimTerminateThread");
+
+	/* XXX whoa */
+	for ( ; ; )
+		schedule();
 
 	return;
 }

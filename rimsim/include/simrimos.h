@@ -97,6 +97,9 @@ typedef struct {
 	BYTE reserved3[24];
 } DEVICE_INFO;
 
+#define DEV_HANDHELD 3
+#define NET_MOBITEX 1
+
 typedef int (__attribute__((__cdecl__)) *CALLBACK_FUNC)(MESSAGE *);
 
 typedef struct {
