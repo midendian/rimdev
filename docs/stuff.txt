@@ -234,3 +234,8 @@ into a very particular place in RAM.  You can see this list using
 ---------
 
 
+Something is mapped at 0x00400000 to 0x00600000, and at least part of it
+is application RAM.  Lots of it reads as a monotinous repeating pattern,
+so there may be control registers there as well.  Or maybe the LCD or
+something.
+

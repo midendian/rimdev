@@ -78,6 +78,8 @@ static const char *tcp_statenames[11] = {
 #define TCP_SKID_INVAL -1
 #define TCP_SKID_ORIGIN 0
 
+#define TCP_DEFAULT_WINDOW 420 /* arbitrary */
+
 /* This is no where near compliant. */
 static unsigned long tcp_nextisn = 0x12211221;
 static unsigned long tcp_genisn(void)
@@ -100,6 +102,13 @@ struct tcpvec {
 	struct tcpvec *next;
 };
 
+struct tcprxvec {
+	int len;
+	int offset;
+	unsigned char *buf;
+	struct tcprxvec *next;
+};
+
 /* This is packed so that it will be smaller */
 struct tcp_socket {
 	int id __attribute__((__packed__));
@@ -118,6 +127,9 @@ struct tcp_socket {
 	/* Next sequence number to be sent */
 	unsigned long snd_nxt __attribute__((__packed__));
 
+	unsigned short rcv_mss __attribute__((__packed__));
+
+	struct tcprxvec *rxqueue;
 	struct tcpvec *txqueue;
 
 	/* 
@@ -135,14 +147,14 @@ struct tcp_socket {
 /* XXX fix the .bss issue so I don't have to initalize everything! XXX */
 static int tcp_nextskid = TCP_SKID_ORIGIN;
 static struct tcp_socket tcp_sockets[TCP_MAX_OPENSOCKETS] = {
-	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0},
-	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0},
-	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0},
-	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0},
-	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0},
-	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0},
-	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0},
-	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0},
+	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, 0},
+	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, 0},
+	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, 0},
+	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, 0},
+	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, 0},
+	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, 0},
+	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, 0},
+	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, 0},
 };
 
 void tcp_dumpsockets(void)
@@ -184,6 +196,26 @@ void tcp_dumpsockets(void)
 	}
 
 	return;
+}
+
+int intermobi_tcp_socket(int skid)
+{
+	return -1;
+}
+
+int intermobi_tcp_listen(int skid)
+{
+	return -1;
+}
+
+int intermobi_tcp_write(int skid, const unsigned char *buf, int n)
+{
+	return -1;
+}
+
+int intermobi_tcp_read(int skid, unsigned char *buf, int n)
+{
+	return 0;
 }
 
 static struct tcp_socket *tcp_findsock(unsigned short localport, unsigned long remoteaddr, unsigned short remoteport)
@@ -309,7 +341,7 @@ static int tcp_listen(struct tcp_socket *sk, unsigned short port, int (*datahand
  * The new socket is returned with its state set to SYN_RCVD.
  *
  */
-static struct tcp_socket *tcp_accept(struct tcp_socket *listener, unsigned long remoteaddr, unsigned short remoteport, unsigned long seqnum)
+static struct tcp_socket *tcp_accept(struct tcp_socket *listener, unsigned long remoteaddr, unsigned short remoteport, unsigned long seqnum, unsigned short mss)
 {
 	struct tcp_socket *sk;
 
@@ -321,6 +353,8 @@ static struct tcp_socket *tcp_accept(struct tcp_socket *listener, unsigned long 
 	sk->remoteport = remoteport;
 	sk->rcv_nxt = seqnum+1;
 	sk->snd_una = sk->snd_nxt = tcp_genisn();
+	sk->rcv_mss = mss ? mss : TCP_DEFAULT_WINDOW;
+	sk->rxqueue = NULL;
 	sk->txqueue = NULL;
 	sk->datahandler = listener->datahandler;
 	tcp_changestate(sk, STATE_SYN_RCVD);
@@ -411,6 +445,8 @@ static int tcp_http_handler(struct tcp_socket *sk, const unsigned char *data, in
 		if (index(req, ' '))
 			*(index(req, ' ')) = '\0';
 
+		dprintf("tcp: http: req = %s\n", req);
+
 		if ((strcmp(req, "/") == 0) ||
 			(strncmp(req, "/index", 6) == 0)) {
 
@@ -494,13 +530,8 @@ static unsigned short tcp_checksum(unsigned char *buf, int buflen, unsigned long
  */
 static int tcp_send_rst(unsigned long destip, unsigned short dstport, unsigned short srcport, unsigned long seqnum)
 {
-	unsigned char *pkt;
-	struct tcphdr *hdr;
-
-	if (!(pkt = RimMalloc(20)))
-		return -1;
-
-	hdr = (struct tcphdr *)pkt;
+	unsigned char pkt[20];
+	struct tcphdr *hdr = (struct tcphdr *)pkt;
 
 	hdr->srcport = srcport;
 	hdr->dstport = dstport;
@@ -517,8 +548,6 @@ static int tcp_send_rst(unsigned long destip, unsigned short dstport, unsigned s
 
 	ip_send(destip, IPPROTO_TCP, pkt, 20);
 
-	RimFree(pkt);
-
 	return 0;
 }
 
@@ -530,7 +559,7 @@ static void tcp_txenqueue(struct tcp_socket *sk, unsigned char flags, unsigned l
 		return;
 
 	vec->flags = flags;
-	vec->seqnum = seqnum;
+	vec->seqnum = sk->snd_nxt;
 	vec->start = 0;
 	vec->len = buflen;
 	vec->buf = buf;
@@ -556,8 +585,6 @@ static void tcp_txenqueue(struct tcp_socket *sk, unsigned char flags, unsigned l
 	return;
 }
 
-#define TCP_DEFAULT_WINDOW 2144 /* arbitrary */
-
 /*
  * Send a SYN-ACK to destip, from port srcport to port dstport, acking seqnum.
  *
@@ -567,91 +594,20 @@ static void tcp_txenqueue(struct tcp_socket *sk, unsigned char flags, unsigned l
  */
 static int tcp_send_syn(struct tcp_socket *sk)
 {
-#if 0
-	unsigned char *pkt;
-	struct tcphdr *hdr;
-
-	if (!(pkt = RimMalloc(24)))
-		return -1;
-
-	hdr = (struct tcphdr *)pkt;
-
-	hdr->srcport = htons(sk->localport);
-	hdr->dstport = htons(sk->remoteport);
-
-	/* SYNs consume a seqnum */
-	sk->snd_una = sk->snd_nxt;
-	hdr->seqnum = htonl(sk->snd_nxt);
-	sk->snd_nxt++;
-
-	hdr->acknum = htonl(sk->rcv_nxt);
-
-	hdr->hdrlen = 6; /* 24 / 4 = 6 */
-	hdr->reserved1 = hdr->reserved2 = 0;
-	hdr->cntrlbits = TCPBIT_SYN | TCPBIT_ACK;
-	hdr->window = htons(TCP_DEFAULT_WINDOW);
-	hdr->csum = 0;
-	hdr->urgptr = 0;
-
-	pkt[20] = 0x02;
-	pkt[21] = 0x04;
-	*(unsigned short *)(pkt+22) = htons(536); /* arbitrary? */
-
-	hdr->csum = tcp_checksum(pkt, hdr->hdrlen*4, htonl(INTERMOBI_OURIP), htonl(sk->remoteaddr));
-
-	ip_send(htonl(sk->remoteaddr), IPPROTO_TCP, pkt, 24);
-#endif
 
 	tcp_txenqueue(sk, TCPBIT_SYN, sk->snd_nxt /*ntohl(hdr->seqnum)*/, NULL, 0);
 
 	tcp_send_data(sk, NULL, 0);
 
-#if 0
-	RimFree(pkt);
-#endif
-
 	return 0;
 }
 
-/* XXX make this use txenqueue() */
 static int tcp_send_fin(struct tcp_socket *sk)
 {
-#if 0
-	unsigned char *pkt;
-	struct tcphdr *hdr;
-
-	if (!(pkt = RimMalloc(20)))
-		return -1;
-
-	hdr = (struct tcphdr *)pkt;
-
-	hdr->srcport = htons(sk->localport);
-	hdr->dstport = htons(sk->remoteport);
-
-	/* FINs consume a seqnum */
-	sk->snd_una = sk->snd_nxt;
-	hdr->seqnum = htonl(sk->snd_nxt);
-	sk->snd_nxt++;
-
-	hdr->acknum = htonl(sk->rcv_nxt);
-
-	hdr->hdrlen = 5; /* 20 / 4 = 5 */
-	hdr->reserved1 = hdr->reserved2 = 0;
-	hdr->cntrlbits = TCPBIT_FIN | TCPBIT_ACK;
-	hdr->window = htons(TCP_DEFAULT_WINDOW);
-	hdr->csum = 0;
-	hdr->urgptr = 0;
-
-	hdr->csum = tcp_checksum(pkt, hdr->hdrlen*4, htonl(INTERMOBI_OURIP), htonl(sk->remoteaddr));
-
-	ip_send(htonl(sk->remoteaddr), IPPROTO_TCP, pkt, 20);
-#endif
 
 	tcp_txenqueue(sk, TCPBIT_FIN, sk->snd_nxt, NULL, 0);
 
-#if 0
-	RimFree(pkt);
-#endif
+	tcp_send_data(sk, NULL, 0);
 
 	return 0;
 }
@@ -699,7 +655,7 @@ static int tcp_send_data(struct tcp_socket *sk, const unsigned char *data, int d
 		tcp_txenqueue(sk, 0, sk->snd_nxt, bufdup(data, datalen), datalen);
 
 	for (cur = sk->txqueue, datalen = 0, seqnum = sk->snd_nxt; 
-		 cur; cur = cur->next) {
+		 cur && (datalen < sk->rcv_max); cur = cur->next) {
 
 		if (cur->txcount >= TCP_MAX_RETRIES) {
 			tcp_changestate(sk, STATE_TIME_WAIT);
@@ -755,11 +711,8 @@ static int tcp_send_data(struct tcp_socket *sk, const unsigned char *data, int d
 
 static int tcp_send_ack(struct tcp_socket *sk)
 {
-	unsigned char *pkt;
+	unsigned char pkt[20];
 	struct tcphdr *hdr;
-
-	if (!(pkt = RimMalloc(20)))
-		return -1;
 
 	hdr = (struct tcphdr *)pkt;
 
@@ -779,8 +732,6 @@ static int tcp_send_ack(struct tcp_socket *sk)
 	hdr->csum = tcp_checksum(pkt, hdr->hdrlen*4, htonl(INTERMOBI_OURIP), htonl(sk->remoteaddr));
 
 	ip_send(htonl(sk->remoteaddr), IPPROTO_TCP, pkt, 20);
-
-	RimFree(pkt);
 
 	return 0;
 }
@@ -849,7 +800,7 @@ static int tcp_consumeseg(struct tcp_socket *sk, unsigned long srcip, unsigned c
 		dumpbox(pkt+(hdr->hdrlen*4), pktlen-(hdr->hdrlen*4));
 
 		/* XXX implement delayed ACKs and mitigate ACK-only segments */
-		sk->rcv_nxt = ntohl(hdr->seqnum)+(pktlen-(hdr->hdrlen*4))+1;
+		sk->rcv_nxt = ntohl(hdr->seqnum)+(pktlen-(hdr->hdrlen*4))+0;
 		if (!sk->datahandler || 
 			!sk->datahandler(sk, pkt+(hdr->hdrlen*4), pktlen-(hdr->hdrlen*4)))
 			tcp_send_ack(sk);
@@ -882,6 +833,7 @@ int tcp_handler(unsigned long srcip, unsigned char *pkt, int pktlen)
 	struct tcphdr *hdr;
 	int optlen, i;
 	struct tcp_socket *sk;
+	unsigned short mss = 0;
 
 	if (!pkt || (pktlen < 20))
 		return PKTHANDLER_REJECT;
@@ -927,6 +879,8 @@ int tcp_handler(unsigned long srcip, unsigned char *pkt, int pktlen)
 
 			dprintf("tcp: opts: mss = %d\n", ntohs(*mss));
 
+			mss = ntohs(*mss);
+
 		} else if (hdr->opts[i] == 0x03) {
 			unsigned char *shift = hdr->opts+i+2;
 
@@ -956,7 +910,7 @@ int tcp_handler(unsigned long srcip, unsigned char *pkt, int pktlen)
 
 			if ((lsk = tcp_findlistener(ntohs(hdr->dstport))) &&
 				(sk = tcp_accept(lsk, ntohl(srcip), ntohs(hdr->srcport), 
-								 ntohl(hdr->seqnum)))) {
+								 ntohl(hdr->seqnum), mss))) {
 
 				dprintf("tcp: connecting 0x%08lx:%u to local port %u\n",
 						srcip, hdr->srcport,

@@ -54,6 +54,9 @@ int strncmp(const char *s1, const char *s2, int n)
 		i++;
 	}
 
+	if (i == n)
+		return 0; /* sure! */
+
 	if (*s1 < *s2)
 		return -1;
 	if (*s1 > *s2)
