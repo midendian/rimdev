@@ -18,6 +18,8 @@
 
 #include <simrimos.h>
 
+#include <pthread.h>
+
 #define RIM_MAXAPPNAMELEN 64
 
 #define RIM_TASKFLAG_NONE             0x00000000
@@ -37,10 +39,17 @@ typedef struct rim_task_s {
 	BitMap icon;
 	TASK parent;
 	TASK taskid;
-	unsigned char *stackbase;
 	unsigned long stacksize;
+#if 0
+	unsigned char *stackbase;
 	unsigned long esp; /* current stack pointer */
 	unsigned long eip; /* current instruction pointer */
+#else
+	pthread_t tid;
+	int runnable;
+	pthread_cond_t execcond;
+	pthread_mutex_t execlock;
+#endif
 	struct rim_task_s *next;
 } rim_task_t;
 

@@ -27,7 +27,7 @@ dnl Checks for library functions.
 AC_FUNC_MEMCMP
 AC_CHECK_FUNCS(select socket)
 
-CFLAGS="$CFLAGS -Wall -g"
+CFLAGS="$CFLAGS -Wall -g -pthread"
 
 AC_OUTPUT([
 Makefile 

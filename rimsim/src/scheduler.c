@@ -3,17 +3,56 @@
 /*
  * The process scheduler. 
  *
- * Several things need to get implemented before this can 
- * actually be a scheduler; namely:
- *      - Seperate task stacks (this appears to work now)
- *      - Saving of EIP values for when a task enters the scheduler
- *      - Condition waits so that tasks can escape the 
- *          scheduler (ie, RimGetMessage)
+ * So originally I was brave, and started doing this The Real Way.
  *
+ * Then I got bored of typing '__asm__', so I'm cheating and doing
+ * it the Real Easy Way.
+ *
+ * Each task gets its own (p)thread.  In this scheme, the scheduler's
+ * role is to _keep_ threads from getting scheduled instead of actually
+ * making them go.  Since the target emulation is that of a cooperative
+ * multitasking OS, only one thread can run at a time, and even then, 
+ * only when another thread specifically yields.  Pthreads doesn't let
+ * us have such control over things, so we enforce it using conditioned
+ * waits.
+ *
+ * Every thread gets created and enters taskentry(), at which point
+ * it immediatly gets put to sleep, waiting for ->running to become
+ * nonzero, at which point it begins its initial execution.  [This 
+ * isn't exactly how RIMOS seems to do it.  For it, task creation
+ * and initial execution seem to be one step.  I think thats dumb
+ * and I'm not going to do that.  Its not critical, since
+ * all apps are written to handle the opposite case, there should
+ * be no problem in being ready too soon.  That is, every RIM app
+ * should begin with a RimTaskYield().]  Once the execution begins,
+ * the first call to one of the blocking syscalls (RimTaskYield or
+ * a RimGetMessage varient) results in a call to schedule(), where
+ * control is yielded to all tasks waiting to run; eventually the
+ * list will be exhausted and the original waiting task will get run
+ * again.
+ *
+ * The definition of RimGetMessage is fairly clear: the task will
+ * wake up when a message arrives for it to return.  Under no
+ * circumstances will RimGetMessage fail to return a message.
+ *
+ * The definition of RimTaskYield is by contrast, quite vague. I have
+ * inferred that it will run every task that is waiting to run, not
+ * just one task and then return (like one might think if they're 
+ * coming from a traditional kernel).  I have inferred this mainly
+ * because the documentation says to call RimTaskYield immediatly, 
+ * before any calls are made to other tasks.  Since it is only
+ * called once, and you could make calls to anything afterward, it must
+ * run them all.
+ *
+ * This code is all nice and straightforward.  Until I go back and do it
+ * the real way, and removing pthreads.  And doing full context switches
+ * in here.
  *
  */
 
 #include <rimsim.h>
+
+#undef DEBUG_SCHEDULE
 
 rim_task_t *rim_task_list = NULL;
 rim_task_t *rim_task_current = NULL;
@@ -38,10 +77,152 @@ TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 	newtask->entry = entry;
 	newtask->stacksize = stacksize;
 
+	newtask->runnable = 0;
+	pthread_cond_init(&newtask->execcond, NULL);
+	pthread_mutex_init(&newtask->execlock, NULL);
+
 	/* If it has no parent, automatically give it foreground access. */
 	if (newtask->parent == RIM_TASK_NOPARENT)
 		newtask->flags |= RIM_TASKFLAG_ENABLEFOREGROUND;
 
+	newtask->next = rim_task_list;
+	rim_task_list = newtask;
+
+	/* If we haven't started running a task yet, set the first one runnable */
+	if (!rim_task_current)
+		rim_task_current = rim_task_list;
+
+	return newtask->taskid;
+}
+
+/*
+ * Wake up the task x. Its up to the context to make 
+ * sure no other task is running.
+ */
+#define TASK_WAKEUP(x) { \
+	pthread_mutex_lock(&x->execlock); \
+	x->runnable = 1; \
+	pthread_cond_signal(&x->execcond); \
+	pthread_mutex_unlock(&x->execlock); \
+}
+
+/*
+ * Put x to sleep.  
+ */
+#define TASK_PUTTOSLEEP(x) { \
+	pthread_mutex_lock(&x->execlock); \
+	x->runnable = 0; \
+	pthread_mutex_unlock(&x->execlock); \
+}
+
+/*
+ * Used after PUTTOSLEEP; waits for x to be set runnable
+ * again.
+ */
+#define TASK_WAITTORUN(x) { \
+	pthread_mutex_lock(&x->execlock); \
+	while (!x->runnable) \
+		pthread_cond_wait(&x->execcond, &x->execlock); \
+	pthread_mutex_unlock(&x->execlock); \
+}
+
+static void *taskentry(void *arg)
+{
+	rim_task_t *self = (rim_task_t *)arg;
+
+#ifdef DEBUG_SCHEDULE
+	fprintf(stderr, "taskentry for %ld\n", self->taskid);
+#endif
+
+	/* Wait until we're set runnable for the first time. */
+	TASK_WAITTORUN(self);
+
+	/* Do it! */
+	self->entry();
+
+#ifdef DEBUG_SCHEDULE
+	fprintf(stderr, "task %ld died!\n", self->taskid);
+#endif
+
+	return NULL;
+}
+    
+/*
+ * This is the one called by main().  It has to be special relative
+ * to what the OS calls because the incoming context is not part of
+ * a RIM task.
+ *
+ * It is also responsible for creating the threads for each task. After
+ * the first task is woken up, this thread just sits around and waits.
+ * It would probably be wise to implement the watchpuppy here instead
+ * of just sleeping.
+ *
+ */
+void firstschedule(void)
+{
+	rim_task_t *cur;
+
+	for (cur = rim_task_list; cur; cur = cur->next) {
+		if (pthread_create(&cur->tid, NULL, taskentry, cur)) {
+			fprintf(stderr, "firstschedule: unable to create thread for %ld\n", cur->taskid);
+			return;
+		}
+	}
+
+	/* Wake up first task */
+	TASK_WAKEUP(rim_task_current);
+
+	for (;;) {
+#ifdef DEBUG_SCHEDULE
+		fprintf(stderr, "main thread sleeping...\n");
+#endif
+		sleep(1);
+	}
+
+	return;
+}
+
+void schedule(void)
+{
+	rim_task_t *caller;
+
+	caller = rim_task_current;
+
+#ifdef DEBUG_SCHEDULE
+	fprintf(stderr, "putting %ld to sleep\n", caller->taskid);
+#endif
+	TASK_PUTTOSLEEP(caller);
+
+	/* Switch to the next task */
+	if (rim_task_current->next)
+		rim_task_current = rim_task_current->next;
+	else
+		rim_task_current = rim_task_list;
+	
+#ifdef DEBUG_SCHEDULE
+	fprintf(stderr, "waking up %ld\n", rim_task_current->taskid);
+#endif
+
+	TASK_WAKEUP(rim_task_current);
+
+#ifdef DEBUG_SCHEDULE
+	fprintf(stderr, "starting %ld back up\n", caller->taskid);
+#endif
+
+	/* Wait until we're set runable again */
+	TASK_WAITTORUN(caller);
+
+	/* At this point we can assume rim_task_current == caller again */
+	if (rim_task_current != caller)
+		abort();
+
+	return;
+}
+
+#if 0 /* old non-threads stuff */
+
+TASK createtask(void)
+{
 	if (!(newtask->stackbase = malloc(newtask->stacksize))) {
 		free(newtask);
 		return RIM_TASK_INVALID;
@@ -54,24 +235,8 @@ TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 	newtask->eip = (unsigned long)newtask->entry;
 
 	fprintf(stderr, "createtask: %s / 0x%08lx / %p / %ld / %ld / %ld@0x%08lx-0x%08lx / 0x%08lx\n", newtask->name, newtask->flags, newtask->entry, newtask->parent, newtask->taskid, newtask->stacksize, (unsigned long)newtask->stackbase, newtask->esp, newtask->eip);
-
-	newtask->next = rim_task_list;
-	rim_task_list = newtask;
-
-	/* If we haven't started running a task yet, set the first one runnable */
-	if (!rim_task_current)
-		rim_task_current = rim_task_list;
-
-	return newtask->taskid;
 }
 
-static unsigned long ourstackptr = 0;
-
-/*
- * This is the one called by main().  It has to be special relative
- * to what the OS calls because the incoming context is not part of
- * a RIM task.
- */
 void firstschedule(void)
 {
 	unsigned long stackptr;
@@ -151,11 +316,6 @@ void firstschedule(void)
 						  :"r"(rim_task_current->esp),
 						  "r"(rim_task_current->eip)
 						  );
-#if 0 /* this actually works right now */
-	rim_task_current->entry();
-#endif
-
-	return;
 }
 
 /* XXX I haven't decided how I want to do this yet. */
@@ -181,24 +341,14 @@ void schedule(void)
 	 * the stack that libc gave us, not the one we allocated for the 
 	 * current task.  
 	 */
-#if 0
-	__asm__ __volatile__ (
-						  "movl 4(%%esp), %0;"
-						  "movl %%esp, %1;"
-						  :"=r"(rim_task_current->eip), 
-						  "=r"(rim_task_current->esp));
-#else
 	__asm__ __volatile__ (
 						  "movl 4(%%esp), %0;"
 
-#if 1
 						  /* Remove ourselves */
 						  "popl %%eax;"
 						  "popl %%eax;"
-#endif
 
 						  /* Save context */
-#if 0
 						  "pushl %%eax;"
 						  "pushl %%ebx;"
 						  "pushl %%ecx;"
@@ -206,9 +356,6 @@ void schedule(void)
 						  "pushl %%esi;"
 						  "pushl %%edi;"
 						  "pushl %%ebp;"
-#else
-						  "pusha;"
-#endif
 						  "movl %%esp, %1;"
 
 						  "int3;"
@@ -223,7 +370,6 @@ void schedule(void)
 						  :
 						  "r"(ourstackptr)
 						  );
-#endif
 
 	/* The stack is now in a defined state, so unflag this. */
 	rim_task_current->flags &= ~RIM_TASKFLAG_NOTYETRUN;
@@ -257,7 +403,6 @@ void schedule(void)
 		__asm__ __volatile__ (
 							  "movl %0, %%esp;" /* restore their stack */
 							  "movl %1, %%ebp;"
-#if 0
 							  "popl %%ebp;" /* restore their integer context */
 							  "popl %%edi;"
 							  "popl %%esi;"
@@ -265,11 +410,6 @@ void schedule(void)
 							  "popl %%ecx;"
 							  "popl %%ebx;"
 							  "popl %%eax;"
-#else
-							  "popa;"
-							  "movl %0, %%esp;" /* restore their stack */
-							  "movl %1, %%ebp;"
-#endif
 							  "int3;"
 							  "jmp %1;"
 							  :
@@ -285,3 +425,4 @@ void schedule(void)
 
 	return;
 }
+#endif /* 0 */

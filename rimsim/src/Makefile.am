@@ -1,6 +1,5 @@
 
-INCLUDES = -I. -I../include
-# `gtk-config --cflags`
+INCLUDES = -I. -I../include `gtk-config --cflags`
 
 bin_PROGRAMS = rimsim
 
@@ -15,6 +14,6 @@ rimsim_LDADD = \
 	-L$(top_srcdir)/simulation/rimos/lcd -lrimsim_simul_rimos_lcd \
 	-L$(top_srcdir)/simulation/rimos/db -lrimsim_simul_rimos_db
 
-#rimsim_LDFLAGS = \
-#	`gtk-config --libs gthread`
+rimsim_LDFLAGS = \
+	`gtk-config --libs gthread`
 
