@@ -64,6 +64,7 @@
 
 #include <rimsim.h>
 #include "gui.h"
+#include "radio.h"
 
 #define PE_SIG_LEN 4
 #define PE_OFF_STARTOFFSET 0x003c
@@ -473,6 +474,35 @@ simulcall_t simulatedcalls[] = {
 	 (simulfunc_t)sim_DbAddRec, 0, 0},
 	{"RIMOS.EXE", "DbAndRec", -1,
 	 (simulfunc_t)sim_DbAndRec, 0, 0},
+
+	{"RIMOS.EXE", "RadioRegister", -1,
+	 (simulfunc_t)sim_RadioRegister, 0, 0},
+	{"RIMOS.EXE", "RadioDeregister", -1,
+	 (simulfunc_t)sim_RadioDeregister, 0, 0},
+	{"RIMOS.EXE", "RadioOnOff", -1,
+	 (simulfunc_t)sim_RadioOnOff, 0, 0},
+	{"RIMOS.EXE", "RadioGetDetailedInfo", -1,
+	 (simulfunc_t)sim_RadioGetDetailedInfo, 0, 0},
+	{"RIMOS.EXE", "RadioGetSignalLevel", -1,
+	 (simulfunc_t)sim_RadioGetSignalLevel, 0, 0},
+	{"RIMOS.EXE", "RadioGetMpak", -1,
+	 (simulfunc_t)sim_RadioGetMpak, 0, 0},
+	{"RIMOS.EXE", "RadioSendMpak", -1,
+	 (simulfunc_t)sim_RadioSendMpak, 0, 0},
+	{"RIMOS.EXE", "RadioCancelSendMpak", -1,
+	 (simulfunc_t)sim_RadioCancelSendMpak, 0, 0},
+	{"RIMOS.EXE", "RadioStopReception", -1,
+	 (simulfunc_t)sim_RadioStopReception, 0, 0},
+	{"RIMOS.EXE", "RadioResumeReception", -1,
+	 (simulfunc_t)sim_RadioResumeReception, 0, 0},
+	{"RIMOS.EXE", "RadioRequestSkipnum", -1,
+	 (simulfunc_t)sim_RadioRequestSkipnum, 0, 0},
+	{"RIMOS.EXE", "RadioAccelerateRetries", -1,
+	 (simulfunc_t)sim_RadioAccelerateRetries, 0, 0},
+	{"RIMOS.EXE", "RadioGetAvailableNetworks", -1,
+	 (simulfunc_t)sim_RadioGetAvailableNetworks, 0, 0},
+	{"RIMOS.EXE", "RadioChangeNetworks", -1,
+	 (simulfunc_t)sim_RadioChangeNetworks, 0, 0},
 
 
 	{"ribbon.dll", "RibbonRegisterApplication", 23,
@@ -1518,11 +1548,16 @@ int main(int argc, char **argv)
 {
 	int i;
 	int loadit = 0;
+	char *rappath = NULL;
 
 	if (gui_start(&argc, &argv) == -1)
 		return -1;
-	while ((i = getopt(argc, argv, "h")) != EOF) {
-		if (i == 'h') {
+
+	while ((i = getopt(argc, argv, "r:h")) != EOF) {
+		if (i == 'r')
+			rappath = optarg;
+		else if (i == 'h') {
+
 		showhelp:
 			printf("hah.\n");
 			return -1;
@@ -1531,6 +1566,11 @@ int main(int argc, char **argv)
 
 	if (optind >= argc)
 		goto showhelp;
+
+	if (radio_init(rappath) == -1) {
+		printf("radio init failed\n");
+		return -1;
+	}
 
 	for (i = optind; i < argc; i++) {
 		if (adddll(argv[i]) != 0)

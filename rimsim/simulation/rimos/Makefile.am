@@ -1,3 +1,3 @@
 
-SUBDIRS = libc core lcd db
+SUBDIRS = libc core lcd db radio
 

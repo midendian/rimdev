@@ -83,6 +83,9 @@ TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name)
 	pthread_cond_init(&newtask->execcond, NULL);
 	pthread_mutex_init(&newtask->execlock, NULL);
 
+	newtask->msgqueue = NULL;
+	pthread_mutex_init(&newtask->msglock, NULL);
+
 	/* If it has no parent, automatically give it foreground access. */
 	if (newtask->parent == RIM_TASK_NOPARENT)
 		newtask->flags |= RIM_TASKFLAG_ENABLEFOREGROUND;

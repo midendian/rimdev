@@ -22,17 +22,46 @@ static void *guithread(void *arg)
 	return NULL;
 }
 
-static gint lcd_expose(GtkWidget *widget, GdkEventExpose *event)
+static gboolean lcd_expose(GtkWidget *widget, GdkEventExpose *event)
 {
 
 	gdk_window_clear_area(widget->window,
 						  event->area.x, event->area.y,
 						  event->area.width, event->area.height);
 
+#if 0
 	gdk_draw_rectangle (widget->window,
 						widget->style->black_gc,
 						TRUE,
 						event->area.x, event->area.y, 10, 10);
+#endif
+
+	return TRUE;
+}
+
+static gboolean lcd_keyrelease(GtkWidget *widget, GdkEventKey *event)
+{
+	MESSAGE keypadmsg;
+
+	keypadmsg.Device = DEVICE_KEYPAD;
+	keypadmsg.Event = KEY_DOWN;
+
+	keypadmsg.Length = 0;
+	keypadmsg.DataPtr = NULL;
+
+	keypadmsg.SubMsg = event->string[0];
+
+	keypadmsg.Data[0] = 0;
+	if (event->state & GDK_SHIFT_MASK)
+		keypadmsg.Data[0] |= SHIFT_STATUS;
+	if (event->state & GDK_LOCK_MASK)
+		keypadmsg.Data[0] |= CAPS_LOCK;
+   	if (event->state & GDK_CONTROL_MASK)
+		keypadmsg.Data[0] |= ALT_STATUS;
+
+	keypadmsg.Data[1] = 0;
+
+	sendmessage(&keypadmsg, RIM_TASK_INVALID);
 
 	return TRUE;
 }
@@ -50,6 +79,8 @@ int gui_start(int *argc, char ***argv)
 
 	gtk_signal_connect(GTK_OBJECT(window), "destroy",
 					   GTK_SIGNAL_FUNC(destroy), NULL);
+	gtk_signal_connect(GTK_OBJECT(window), "key_press_event", 
+					   GTK_SIGNAL_FUNC(lcd_keyrelease), NULL);
 
 	gtk_container_set_border_width(GTK_CONTAINER (window), 10);
 
@@ -58,7 +89,9 @@ int gui_start(int *argc, char ***argv)
 	lcd = gtk_drawing_area_new();
 	gtk_drawing_area_size(GTK_DRAWING_AREA(lcd), 160, 160);
 	gtk_box_pack_start(GTK_BOX(vbox), lcd, FALSE, FALSE, 0);
-	gtk_signal_connect(GTK_OBJECT(lcd), "expose_event", GTK_SIGNAL_FUNC(lcd_expose), NULL);
+
+	gtk_signal_connect(GTK_OBJECT(lcd), "expose_event", 
+					   GTK_SIGNAL_FUNC(lcd_expose), NULL);
 
 	label = gtk_label_new("And now for something completely different ...");
 	gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);

@@ -8,8 +8,18 @@ TASK sim_RimGetMessage(MESSAGE *msg)
 
 	fflush(stdout);
 
-	for (;;) /* while (!rim_current_task->msgqueue) */
+	for (;;) {
+		MESSAGE *newmsg;
+		TASK poster;
+
+		if ((newmsg = getmessage(&poster))) {
+			memcpy(msg, newmsg, sizeof(MESSAGE));
+			freemessage(newmsg);
+			return poster;
+		}
+
 		schedule();
+	}
 
 	return 0;
 }

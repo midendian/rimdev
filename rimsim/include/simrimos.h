@@ -20,6 +20,37 @@ typedef struct {
 	BYTE *data;
 } BitMap;
 
+#define DEVICE_SYSTEM	1
+#define DEVICE_KEYPAD	2
+#define DEVICE_RTC	3
+#define DEVICE_TIMER	4
+#define DEVICE_COM1	5
+#define DEVICE_RADIO	6
+#define DEVICE_HOLSTER	7
+#define DEVICE_USER	128
+#define LAST_DEVICE	DEVICE_HOLSTER
+
+/* SYSTEM events */
+#define SWITCH_FOREGROUND	0x0100
+#define SWITCH_BACKGROUND	0x0101
+#define BATTERY_LOW		0x0102
+#define POWER_OFF		0x0103
+#define POWER_UP		0x0104
+#define SYSEVENT_UNKNOWN	0x0105 /* not defined */
+#define TASK_LIST_CHANGED	0x0106 
+#define BATTERY_GOOD		0x0107
+#define MEMORY_LOW		0x0108
+#define BATTERY_UPDATE		0x0109
+#define EVENT_USER		0x8000
+
+/* RTC events */
+#define RTC_ALARM_EXPIRED	0x0300
+#define RTC_CLOCK_UPDATE	0x0301
+
+/* HOLSTER events */
+#define OUT_OF_HOLSTER		0x0700
+#define IN_HOLSTER		0x0701
+
 
 /* Rim.h */
 typedef struct {
@@ -97,6 +128,57 @@ typedef struct {
 
 typedef short HandleType;
 typedef int STATUS;
+
+/* mobitex.h */
+typedef struct {
+    long Sender;
+    long Destination;
+    int MpakType;
+    int HPID;
+    int Flags;
+    TIME Timestamp;
+    long lTime;
+    int TrafficState;
+} MPAK_HEADER;
+
+typedef struct {
+    int RadioOn;
+    DWORD LocalMAN;
+    DWORD ESN;
+    int Base;
+    int Area;
+    int RSSI;
+    WORD NetworkID;
+    DWORD FaultBits;
+    BOOL Active;
+    BOOL PowerSaveMode;
+    BOOL LiveState;
+    BOOL TransmitterEnabled;
+} RADIO_INFO;
+
+typedef struct {
+    BYTE SkipNum;
+    BYTE ProtocolRevision;
+    BYTE SkipTrans;
+    BYTE Mode;
+} SKIPNUM_INFO;
+
+typedef struct {
+    int DefaultNetworkIndex;
+    int CurrentNetworkIndex;
+    int NumValidNetworks;
+    struct {
+	WORD NetworkId;
+	BYTE NetworkName[10];
+    } Networks[10];
+} NETWORKS_INFO;
+
+#define RSSI_NO_COVERAGE -256
+
+#define RADIO_OFF	0
+#define RADIO_ON	1
+#define RADIO_LOWBATT	2
+#define RADIO_GET_ONOFF	3
 
 /* libc */
 void *sim_memmove(void *dest, const void *src, size_t len);
@@ -179,6 +261,79 @@ void sim_LcdGetConfig(LcdConfig *Config);
 HandleType sim_DbAddRec(HandleType db, unsigned size, const void *data);
 void const * const *sim_DbPointTable(void);
 STATUS sim_DbAndRec(HandleType rec, void *mask, unsigned size, unsigned offset);
+
+/* radio */
+
+#define MAX_QUEUED_MPAKS	7
+
+#define MESSAGE_RECEIVED	0x0601
+#define MESSAGE_SENT		0x0602
+#define MESSAGE_NOT_SENT	0x0603
+#define SIGNAL_LEVEL		0x0604
+#define NETWORK_STARTED		0x0605
+#define BASE_STATION_CHANGE	0x0606
+#define RADIO_TURNED_OFF	0x0607
+#define MESSAGE_STATUS		0x0608
+
+#define RADIO_APP_NOT_REGISTERED	-1
+#define RADIO_MPAK_NOT_FOUND		-2
+#define RADIO_NO_FREE_BUFFERS		-3
+#define RADIO_BAD_DATA			-4
+#define RADIO_BAD_TAG			-5
+#define RADIO_ERROR_GENERAL		-6
+#define RADIO_ILLEGAL_SKIPNUM		-7
+#define RADIO_ILLEGAL_WSM_PACKET	-8
+
+void sim_RadioRegister(void);
+void sim_RadioDeregister(void);
+int sim_RadioOnOff(int mode);
+void sim_RadioGetDetailedInfo(RADIO_INFO *info);
+int sim_RadioGetSignalLevel(void);
+int sim_RadioGetMpak(int mpakTag, MPAK_HEADER *header, BYTE *data);
+int sim_RadioSendMpak(MPAK_HEADER *header, BYTE *data, int length);
+int sim_RadioCancelSendMpak(int mpakTag);
+void sim_RadioStopReception(int mpakTag);
+void sim_RadioResumeReception(void);
+int sim_RadioRequestSkipnum(SKIPNUM_INFO *SkipInfo, int Skipnum);
+void sim_RadioAccelerateRetries(int mpakTag);
+void sim_RadioGetAvailableNetworks(NETWORKS_INFO *info);
+void sim_RadioChangeNetworks(DWORD NetworkId, BYTE *NetworkName);
+
+/* keypad */
+#define KEY_DOWN	0x0201
+#define KEY_REPEAT	0x0202
+#define KEY_UP		0x0203
+#define THUMB_CLICK	0x0204
+#define THUMB_UNCLICK	0x0205
+#define THUMB_ROLL_UP	0x0206
+#define THUMB_ROLL_DOWN	0x0207
+#define KEY_STATUS	0x0208
+
+#define ALT_STATUS	0x0001
+#define SHIFT_STATUS	0x0002
+#define CAPS_LOCK	0x0004
+#define KEY_HELD_WHILE_ROLLING	0x0008
+#define ALT_LOCK	0x0010
+#define SHIFT_STATUS_L	0x0020
+#define SHIFT_STATUS_R	0x0040
+
+#define KEY_BACKSPACE	0x0008
+#define KEY_ENTER	0x000d
+#define KEY_SPACE	0x0020
+#define KEY_DELETE	0x007f
+
+#define KEY_SHIFT	0x0100
+#define KEY_ALT		0x0101
+
+#define KEY_ESCAPE	0x001b
+#define KEY_SHIFT2	0x0102
+#define KEY_BKLITE	0x0103
+
+#if 0 /* does anything actuall use these? */
+void sim_KeypadBeep(BOOL Enable);
+void sim_KeypadRate(WORD Delay, WORD Rate);
+BOOL sim_KeypadRegister(DWORD key);
+#endif
 
 #pragma pack(4) /* XXX */
 

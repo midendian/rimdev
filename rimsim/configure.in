@@ -39,4 +39,5 @@ simulation/rimos/libc/Makefile
 simulation/rimos/core/Makefile
 simulation/rimos/lcd/Makefile
 simulation/rimos/db/Makefile
+simulation/rimos/radio/Makefile
 ])
