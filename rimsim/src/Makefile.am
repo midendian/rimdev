@@ -4,7 +4,8 @@ INCLUDES = -I. -I../include
 bin_PROGRAMS = rimsim
 
 rimsim_SOURCES = \
-	rimsim.c 
+	rimsim.c \
+	scheduler.c
 
 rimsim_LDADD = \
 	-L$(top_srcdir)/simulation/rimos/libc -lrimsim_simul_rimos_libc \

@@ -147,7 +147,7 @@ struct RIMDependency {
  *
  */
 #define RIM_VERSEC_SIG_LEN 4
-typedef void (*func_PagerMain)(void);
+typedef void (*func_PagerMain)(void) __attribute__((__cdecl__));
 struct RIMVersionSection {
 	const struct RIMVersionSection *thisRec; /* sure, why not... */
 	char signature[RIM_VERSEC_SIG_LEN]; /* "RIM" */
@@ -391,6 +391,8 @@ simulcall_t simulatedcalls[] = {
 	 (simulfunc_t)sim_LcdGetCharacterWidth, 0, 0},
 	{"RIMOS.EXE", "LcdGetCurrentFont", -1,
 	 (simulfunc_t)sim_LcdGetCurrentFont, 0, 0},
+	{"RIMOS.EXE", "LcdGetFontHeight", -1,
+	 (simulfunc_t)sim_LcdGetFontHeight, 0, 0},
 	{"RIMOS.EXE", "RimSendMessage", -1,
 	 (simulfunc_t)sim_RimSendMessage, 0, 0},
 	{"RIMOS.EXE", "RimFindTask", -1,
@@ -766,6 +768,64 @@ static dll_section_t *getdllsection(rimdll_t *dll, const char *name)
 	return NULL;
 }
 
+#define IMAGE_REL_BASED_ABSOLUTE  0
+#define IMAGE_REL_BASED_HIGH      1
+#define IMAGE_REL_BASED_LOW       2
+#define IMAGE_REL_BASED_HIGHLOW   3
+
+static void loaddll_relocate(rimdll_t *dll)
+{
+	dll_section_t *sec;
+	int i;
+	long delta;
+
+	if (!dll || !(sec = getdllsection(dll, ".reloc")))
+		return;
+
+	delta = (unsigned long)dll->vma - dll->coff.opthdr.ImageBase;
+
+	for (i = 0; i < sec->datalen; ) {
+		unsigned long pagerva, blocksize;
+		int j;
+
+		loadval32(pagerva, sec->data, i);
+		loadval32(blocksize, sec->data, i);
+
+		/* blocksize includes sizeof(pagerva)+sizeof(blocksize) */
+		for (j = 0; j < (blocksize - 8); j += 2) {
+			u16 fixup;
+			unsigned char *target;
+			u8 type;
+			u16 offset;
+
+			fixup = *((unsigned short *)(sec->data+i+j));
+			type = (fixup & 0xf000) >> 12;
+			offset = fixup & 0x0fff;
+
+			target = (unsigned char *)((unsigned long)dll->vma + pagerva + offset);
+
+			if (type == IMAGE_REL_BASED_ABSOLUTE)
+				continue;
+
+			if (type == IMAGE_REL_BASED_HIGHLOW) {
+				u32 *field;
+
+				field = (unsigned long *)target;
+				*(field) += delta; /* wheee */
+
+			} else {
+				fprintf(stderr, "dll_relocate: unknown fixup type %d\n", type);
+				abort();
+			}
+
+		}
+
+		i += blocksize-8; 
+	}
+
+	return;
+}
+
 static void loaddll_processversions(rimdll_t *dll)
 {
 	dll_section_t *sec;
@@ -1040,6 +1100,7 @@ static rimdll_t *loaddll(unsigned char *buf)
 	rimdll_t *dll;
 	int i = 0;
 	unsigned long pestart;
+	void *prefbase = NULL;
 
 	if (!(dll = malloc(sizeof(rimdll_t))))
 		return NULL;
@@ -1144,15 +1205,9 @@ static rimdll_t *loaddll(unsigned char *buf)
 	 * that (since systems may or may not allow that 
 	 * address to be mapped by applications).
 	 *
-	 * XXX For now, bail out when we can't get what we want.
-	 * Thats because I'm really not in the mood to implement
-	 * fixups right now.
-	 *
-	 * Sigh.  Or at least we would, if MAP_FIXED worked correctly
-	 * on linux.  Instead it silently maps over the old one.
-	 *
 	 */
-	if ((dll->vma = mmap((void *)dll->coff.opthdr.ImageBase, dll->coff.opthdr.SizeOfImage, PROT_EXEC|PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)) == MAP_FAILED) {
+	prefbase = (void *)(dll->coff.opthdr.ImageBase+0x1000);
+	if ((dll->vma = mmap(prefbase, dll->coff.opthdr.SizeOfImage, PROT_EXEC|PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)) == MAP_FAILED) {
 		fprintf(stderr, "loaddll: mmap failed: %s\n", strerror(errno));
 		freedll(dll);
 		return NULL;
@@ -1207,14 +1262,15 @@ static rimdll_t *loaddll(unsigned char *buf)
 			/* Copy in the data... */
 			memcpy(dll->sections[n].data, buf+dll->sections[n].PointerToRawData, dll->sections[n].datalen);
 
-#if 0
-			if (strcmp(dll->sections[n].Name, ".rdata") == 0)
+#if 1
+			if (strcmp(dll->sections[n].Name, ".reloc") == 0)
 				dumpbox(dll->sections[n].VirtualAddress, dll->sections[n].data, dll->sections[n].datalen);
 #endif
 
 		}
 	}
 
+	loaddll_relocate(dll);
 	loaddll_processversions(dll);
 	loaddll_processdeps(dll);
 	loaddll_processidata(dll);
@@ -1240,6 +1296,8 @@ static simulcall_t *dll_findsym(struct import_directory *dir, struct import_look
 				return simulatedcalls+i;
 		}
 	}
+
+	fprintf(stderr, "dll_findsym: could not match %s/%ld\n", ilt->ihnt.name, ilt->ordinalnum);
 
 	return NULL;
 }
@@ -1402,7 +1460,7 @@ static int resolveandbind(void)
 			return problem;
 		dll_bindthunks(cur->dll);
 
-		dumpdll(cur->dll);
+		//dumpdll(cur->dll);
 
 	}
 
@@ -1428,10 +1486,23 @@ static void printbanners(void)
 	return;
 }
 
+static int createinitialtasks(void)
+{
+	struct rimdll_entry *cur;
+
+	for (cur = rimdll_list; cur; cur = cur->next) {
+		if (createtask(cur->dll->rimversion.EntryPtr, *(cur->dll->rimversion.AppStackSize), RIM_TASK_NOPARENT, cur->dll->rimversion.VersionPtr) == RIM_TASK_INVALID) {
+			fprintf(stderr, "createinitialtasks: createtask failed\n");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	int i;
-	rimdll_t *dll = NULL;
 	int loadit = 0;
 
 	while ((i = getopt(argc, argv, "h")) != EOF) {
@@ -1460,9 +1531,12 @@ int main(int argc, char **argv)
 
 	printbanners();
 
+	if (createinitialtasks() == -1)
+		goto out;
+
 #if 0
 	sleep(1);
-	fprintf(stderr, "jumping to main entry point (%p)...\n", dll->PagerMain);
+	fprintf(stderr, "jumping to main entry point of first dll (%p)...\n", rimdll_list->dll->PagerMain);
 
 	/*
 	 * XXX Of course, there'll have to be something better here, since
@@ -1484,7 +1558,9 @@ int main(int argc, char **argv)
 	 * RimTaskYield, etc, is a ways off yet.
 	 *
 	 */
-	dll->PagerMain();
+	rimdll_list->dll->PagerMain();
+#else
+	firstschedule();
 #endif
 
  out:

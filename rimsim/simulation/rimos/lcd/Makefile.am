@@ -12,6 +12,7 @@ librimsim_simul_rimos_lcd_a_SOURCES = \
 	LcdGetConfig.c \
 	LcdGetCurrentFont.c \
 	LcdGetDisplayContext.c \
+	LcdGetFontHeight.c \
 	LcdIconsEnable.c \
 	LcdPutStringXY.c \
 	LcdRasterOp.c \

@@ -16,101 +16,38 @@
 #include <time.h>
 #include <stdarg.h>
 
-
-/* basetype.h */
-typedef int BOOL;
-typedef unsigned char BYTE;
-typedef unsigned short WORD; 
-typedef unsigned long DWORD;
-typedef DWORD TASK;
-#define TRUE 1
-#define FALSE 0
-
-typedef struct {
-	BYTE bType;
-	WORD wide;
-	WORD high;
-	BYTE *data;
-} BitMap;
-
-
-/* Rim.h */
-typedef struct {
-	DWORD Device;
-	DWORD Event;
-	DWORD SubMsg;
-	DWORD Length;
-	char *DataPtr;
-	DWORD Data[2];
-} MESSAGE;
-
-typedef struct {
-	const char *Name;
-	BOOL EnableForeground;
-	const BitMap *Icon;
-} PID;
-
-
-typedef struct {
-	BYTE second;
-	BYTE minute;
-	BYTE hour;
-	BYTE date;
-	BYTE month;
-	BYTE day;
-	WORD year;
-	BYTE TimeZone;
-} TIME;
-
-typedef struct {
-	BYTE deviceType;
-	BYTE networkType;
-	WORD reserved1;
-	union {
-		DWORD MAN;
-		DWORD LLI;
-		BYTE reserved2[16];
-	} deviceId;
-	DWORD ESN;
-	BYTE HSN[16];
-	BYTE reserved3[24];
-} DEVICE_INFO;
-
-typedef int (__attribute__((__cdecl__)) *CALLBACK_FUNC)(MESSAGE *);
-
-typedef struct {
-	BYTE duty;
-	BYTE volume;
-	BYTE maxVolume;
-	BYTE repetitions;
-	BYTE vibrateTime;
-	BYTE vibrateType;
-	BYTE inHolsterNotify;
-	BYTE outOfHolsterNotify;
-	BYTE pause;
-} AlertConfiguration;
-
-typedef struct {
-	WORD LcdType;
-	WORD contrastRange;
-	WORD width;
-	WORD height;
-} LcdConfig;
-
-typedef struct {
-	BYTE bFontType;
-	BYTE bFirstChar;
-	BYTE bLastChar;
-	BYTE bCharHeight;
-	BYTE bCharUnderlineRow;
-	BYTE bCharWidth;
-	BYTE *bCharDefinitions;
-	WORD *wCharOffsets;
-} FontDefinition;
-
-typedef short HandleType;
-typedef int STATUS;
-
 #include <simrimos.h>
+
+#define RIM_MAXAPPNAMELEN 64
+
+#define RIM_TASKFLAG_NONE             0x00000000
+#define RIM_TASKFLAG_ENABLEFOREGROUND 0x00000001
+#define RIM_TASKFLAG_ICONPRESENT      0x00000002
+
+#define RIM_TASK_INVALID     0 /* defined by ABI */
+#define RIM_TASK_NOPARENT    1
+#define RIM_TASK_FIRSTID   100
+
+typedef void (*rim_entry_t)(void) __attribute__((__cdecl__));
+typedef struct rim_task_s {
+	char name[RIM_MAXAPPNAMELEN];
+	unsigned long flags;
+	rim_entry_t entry;
+	BitMap icon;
+	TASK parent;
+	TASK taskid;
+	unsigned char *stackbase;
+	unsigned long stacksize;
+	unsigned long esp; /* current stack pointer */
+	unsigned long eip; /* current instruction pointer */
+	struct rim_task_s *next;
+} rim_task_t;
+
+extern rim_task_t *rim_task_list;
+extern rim_task_t *rim_task_current;
+
+TASK createtask(rim_entry_t entry, int stacksize, TASK parent, const char *name);
+void schedule(void);
+void firstschedule(void);
 
 #endif /* __RIMSIM_H__ */

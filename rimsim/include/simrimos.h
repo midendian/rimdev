@@ -1,6 +1,103 @@
 #ifndef __SIMRIMOS_H__
 #define __SIMRIMOS_H__
 
+/* Start of RIM compatibility definitions */
+#pragma pack(2) /* code assumes 16bit alignment */
+
+/* basetype.h */
+typedef int BOOL;
+typedef unsigned char BYTE;
+typedef unsigned short WORD; 
+typedef unsigned long DWORD;
+typedef DWORD TASK;
+#define TRUE 1
+#define FALSE 0
+
+typedef struct {
+	BYTE bType;
+	WORD wide;
+	WORD high;
+	BYTE *data;
+} BitMap;
+
+
+/* Rim.h */
+typedef struct {
+	DWORD Device;
+	DWORD Event;
+	DWORD SubMsg;
+	DWORD Length;
+	char *DataPtr;
+	DWORD Data[2];
+} MESSAGE;
+
+typedef struct {
+	const char *Name;
+	BOOL EnableForeground;
+	const BitMap *Icon;
+} PID;
+
+
+typedef struct {
+	BYTE second;
+	BYTE minute;
+	BYTE hour;
+	BYTE date;
+	BYTE month;
+	BYTE day;
+	WORD year;
+	BYTE TimeZone;
+} TIME;
+
+typedef struct {
+	BYTE deviceType;
+	BYTE networkType;
+	WORD reserved1;
+	union {
+		DWORD MAN;
+		DWORD LLI;
+		BYTE reserved2[16];
+	} deviceId;
+	DWORD ESN;
+	BYTE HSN[16];
+	BYTE reserved3[24];
+} DEVICE_INFO;
+
+typedef int (__attribute__((__cdecl__)) *CALLBACK_FUNC)(MESSAGE *);
+
+typedef struct {
+	BYTE duty;
+	BYTE volume;
+	BYTE maxVolume;
+	BYTE repetitions;
+	BYTE vibrateTime;
+	BYTE vibrateType;
+	BYTE inHolsterNotify;
+	BYTE outOfHolsterNotify;
+	BYTE pause;
+} AlertConfiguration;
+
+typedef struct {
+	WORD LcdType;
+	WORD contrastRange;
+	WORD width;
+	WORD height;
+} LcdConfig;
+
+typedef struct {
+	BYTE bFontType;
+	BYTE bFirstChar;
+	BYTE bLastChar;
+	BYTE bCharHeight;
+	BYTE bCharUnderlineRow;
+	BYTE bCharWidth;
+	BYTE *bCharDefinitions;
+	WORD *wCharOffsets;
+} FontDefinition;
+
+typedef short HandleType;
+typedef int STATUS;
+
 /* libc */
 void *sim_memmove(void *dest, const void *src, size_t len);
 long sim_strtol(const char *nptr, char **endptr, int base);
@@ -65,6 +162,7 @@ int sim_LcdGetDisplayContext(void);
 int sim_LcdGetCharacterWidth(char c, int fontIndex);
 int sim_LcdGetCurrentFont(void);
 int sim_LcdSetCurrentFont(int iFontIndex);
+int sim_LcdGetFontHeight(int fontIndex);
 int sim_LcdReplaceFont(int iFontIndex, const FontDefinition *pNewFont);
 void sim_LcdSetTextWindow(int x, int y, int wide, int high);
 void sim_LcdScroll(int pixels);
