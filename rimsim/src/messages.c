@@ -1,6 +1,7 @@
 /* -*- Mode: ab-c -*- */
 
 #include <rimsim.h>
+#include "radio.h"
 
 static MESSAGE *clonemsg(MESSAGE *msg)
 {
@@ -17,7 +18,7 @@ static MESSAGE *clonemsg(MESSAGE *msg)
 	return newmsg;
 }
 
-static void enqueuemsg(rim_task_t *task, MESSAGE *msg, TASK poster)
+void enqueuemsg(rim_task_t *task, MESSAGE *msg, TASK poster)
 {
 	rim_msg_t *newmsg;
 
@@ -84,6 +85,9 @@ MESSAGE *getmessage(TASK *taskret)
 	ret = msg->msg;
 
 	free(msg);
+
+	if (ret->Device == DEVICE_RADIO)
+		radio_decrefcount(ret);
 
 	return ret;
 }

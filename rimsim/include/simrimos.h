@@ -284,6 +284,27 @@ STATUS sim_DbAndRec(HandleType rec, void *mask, unsigned size, unsigned offset);
 #define RADIO_ILLEGAL_SKIPNUM		-7
 #define RADIO_ILLEGAL_WSM_PACKET	-8
 
+#define TS_MESSAGE_OK			0
+#define TS_MESSAGE_FROM_MAILBOX		1
+#define TS_MESSAGE_IN_MAILBOX		2
+#define TS_CANNOT_BE_REACHED		3
+#define TS_ILLEGAL_MESSAGE		4
+#define TS_NETWORK_CONGESTED		5
+#define TS_TECHNICAL_ERROR		6
+#define TS_DESTINATION_BUSY		7
+
+/* Subscription flags */
+#define FLAG_MAILBOX			1
+#define FLAG_POSACK			2
+#define FLAG_SENDLIST			4
+#define FLAG_UNKNOWN_FLAG		8
+
+#define MPAK_NOT_PSUBCOM		0 /* not actually defined */
+#define MPAK_TEXT			1
+#define MPAK_DATA			2
+#define MPAK_STATUS			3
+#define MPAK_HPDATA			4
+
 void sim_RadioRegister(void);
 void sim_RadioDeregister(void);
 int sim_RadioOnOff(int mode);
