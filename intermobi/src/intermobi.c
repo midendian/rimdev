@@ -394,6 +394,7 @@ struct tcp_socket {
 
 #define TCP_MAX_OPENSOCKETS 8 /* Number of simulatenous active TCP endpoints */
 
+/* XXX fix the .bss issue so I don't have to initalize everything! XXX */
 static int tcp_nextskid = TCP_SKID_ORIGIN;
 static struct tcp_socket tcp_sockets[TCP_MAX_OPENSOCKETS] = {
 	{TCP_SKID_INVAL, STATE_CLOSED, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0},
