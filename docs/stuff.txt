@@ -8,6 +8,9 @@ ALT-CAP-V/B          Device status (did you know that its 27degC in here?)
 
 ----
 
+The host first opens the port at 9600 baud, later using the 'B' command
+to increase it to 115200.
+
 Host:
    00 ; clear out channel
    0eaa 0ff0  ; request attention
@@ -16,30 +19,30 @@ Pager:
    06 ; ack
 
 Host:
-   01 42 04 ; ???
+   01 42 04 ; set baud rate
 Pager:
-   04 ; ???
+   04 ; ??? hmm
 Host:
-   00 00 00 00 ; ???
+   00 00 00 00 ; ??? huh?
 Pager:
-   15 ; ???
+   15 ; ??? error?
 
 Host:
-   01 42 04 ; ???
+   01 42 04 ; set baud rate
 Pager:
    04 ; ???
 Host:
-   00 c2 01 00 ; ??? = 115200
+   00 c2 01 00 ; 115200
 Pager:
    06 ; ???
 
 Host:
-   01 70 04 ; ???
+   01 70 04 ; 'p' ??
 Pager:
    15 
 
 Host:
-   01 52 04
+   01 52 04 ; 'R'
 Pager:
    06
 Host:
@@ -71,7 +74,7 @@ Pager:
    06 [data] [two byte checksum]
 
 Host:
-   01 53 04
+   01 53 04 ; 'S'
 Pager:
    06
 Host:
@@ -80,7 +83,7 @@ Pager:
    06
 
 Host:
-   01 57 04
+   01 57 04 ; 'W'
 Pager:
    06
 Host:
