@@ -107,6 +107,7 @@ struct mpak_slot {
 	int occupied;
 	int slotnum;
 	TASK sender;
+	int done; /* nonzero if transmittion is complete */
 	int direction; /* 0 = App->Cloud, 1 = Could->App */
 	int refcount; /* will be reclaimed if zero */
 	unsigned char *buf;
@@ -121,6 +122,8 @@ struct radio_thread_args {
 	int tapfd;
 	char tapname[16];
 };
+
+static int onetransmit(struct radio_thread_args *args);
 
 static void dumpbox(const unsigned char *buf, int len)
 {
@@ -221,7 +224,8 @@ static void *radio_thread(void *arg)
 			break;
 		}
 
-		/* XXX do a pending transmit here */
+		if (onetransmit(args) == -1)
+			break;
 
 		if (selret == 0)
 			continue;
@@ -294,8 +298,7 @@ static void *radio_thread(void *arg)
 
 	}
 
-	pthread_mutex_lock(&radio_lock);
-	pthread_mutex_unlock(&radio_lock);
+	radio_setstate(0); /* shut the radio off */
 
 	free(args);
 
@@ -445,6 +448,7 @@ static void reclaimslot(struct mpak_slot *slot)
 	slot->buf = NULL;
 	slot->buflen = 0;
 	slot->refcount = 0;
+	slot->done = 0;
 	slot->occupied = 0;
 
 	return;
@@ -484,22 +488,23 @@ int radio_sendmpak(TASK sender, const unsigned char *buf, int buflen)
 	struct mpak_slot *slot;
 
 	if (!buf || (buflen <= 0))
-		return -1;
+		return RADIO_BAD_DATA;
 
 	pthread_mutex_lock(&mpak_slot_lock);
 
 	if (!(slot = findemptyslot())) {
 		pthread_mutex_unlock(&mpak_slot_lock);
-		return -1;
+		return RADIO_NO_FREE_BUFFERS;
 	}
 
 	if (!(slot->buf = malloc(buflen)))
-		return -1;
+		return RADIO_NO_FREE_BUFFERS;
 	memcpy(slot->buf, buf, buflen);
 	slot->buflen = buflen;
 	slot->sender = sender;
 	slot->direction = 0; /* transmit */
 	slot->refcount = 1; /* will be decrement on actual transmit */
+	slot->done = 0;
 	slot->occupied = 1;
 
 	tag = slot->slotnum;
@@ -560,6 +565,7 @@ int radio_recvmpak(int type, int hpid, const unsigned char *buf, int buflen)
 	slot->sender = RIM_TASK_INVALID;
 	slot->direction = 1; /* recieve */
 	slot->refcount = 0; /* will be changed later */
+	slot->done = 1;
 	slot->occupied = 1;
 
 	tag = slot->slotnum;
@@ -627,4 +633,78 @@ void radio_decrefcount(MESSAGE *msg)
 	pthread_mutex_unlock(&mpak_slot_lock);
 
 	return;
+}
+
+static int gethpid(const unsigned char *buf, int buflen)
+{
+	if (buflen < 12)
+		return -1;
+
+	if (buf[7] != MPAK_HPDATA)
+		return -1;
+
+	return buf[11];
+}
+
+static int dotx_tap(struct radio_thread_args *args, struct mpak_slot *slot)
+{
+
+	fprintf(stderr, "dotx_rap:\n");
+	dumpbox(slot->buf, slot->buflen);
+
+	return 1;
+}
+
+static int dotx_rap(struct radio_thread_args *args, struct mpak_slot *slot)
+{
+
+	/* XXX fill this in */
+
+	fprintf(stderr, "dotx_rap:\n");
+	dumpbox(slot->buf, slot->buflen);
+
+	return 1;
+}
+
+static int dotx(struct radio_thread_args *args, struct mpak_slot *slot)
+{
+
+	if ((args->tapfd != -1) && 
+		(gethpid(slot->buf, slot->buflen) == RIM_TAP_HPID))
+		return dotx_tap(args, slot);
+
+	return dotx_rap(args, slot);
+}
+
+static int onetransmit(struct radio_thread_args *args)
+{
+	int i;
+	struct mpak_slot *slot = NULL;
+
+	pthread_mutex_lock(&mpak_slot_lock);
+
+	for (i = 0; i < MAX_QUEUED_MPAKS; i++) {
+		if (!mpak_slots[i].occupied)
+			continue;
+		if ((mpak_slots[i].direction == 0) && !mpak_slots[i].done) {
+			slot = mpak_slots+i;
+			break;
+		}
+	}
+
+	if (!slot) {
+		pthread_mutex_unlock(&mpak_slot_lock);
+		return 0; /* nothing to do */
+	}
+
+	slot->done = dotx(args, slot);
+
+#if 1 /* XXX this should be done later, since we need to send a status update to the sender */
+	if (slot->done)
+		reclaimslot(slot);
+#endif
+
+	pthread_mutex_unlock(&mpak_slot_lock);
+
+	return 0;
 }

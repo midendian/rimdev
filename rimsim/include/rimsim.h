@@ -83,5 +83,6 @@ unsigned long radio_getesn(void);
 
 #define RIM_MAXMOBITEX_BUFLEN 560
 int radio_retrievempak(int tag, unsigned char *destbuf, int destbuflen);
+int radio_sendmpak(TASK sender, const unsigned char *buf, int buflen);
 
 #endif /* __RIMSIM_H__ */
